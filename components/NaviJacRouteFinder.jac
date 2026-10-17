@@ -19,6 +19,7 @@ def:pub NaviJacRouteFinder() -> JsxElement {
         route_points: list[str] = [],
         route_message: str = "Choose a destination. Only verified connections are considered.",
         route_cost: float = 0.0,
+        experimental_mode: bool = False,
         loading: bool = True;
 
     async can with entry {
@@ -33,6 +34,7 @@ def:pub NaviJacRouteFinder() -> JsxElement {
     }
 
     def update_search(e: ChangeEvent) { search_text = e.target.value; }
+    def toggle_experimental(e: ChangeEvent) { experimental_mode = e.target.checked; }
     def choose_start(checkpoint_id: str) { start_id = checkpoint_id; }
     async def choose_destination(room_id: str) -> None {
         destination_id = room_id;
@@ -40,7 +42,7 @@ def:pub NaviJacRouteFinder() -> JsxElement {
         for cp in checkpoints { if cp.room_id == room_id and cp.coordinate_set { target_id = jid(cp); } }
         if len(target_id) == 0 { route_points = []; route_message = "This room entrance is pending placement and verification."; return; }
         if len(start_id) == 0 { route_points = []; route_message = "Choose a placed start checkpoint first."; return; }
-        result = await find_verified_route(floor_id, start_id, target_id);
+        result = await find_verified_route(floor_id, start_id, target_id, experimental_mode);
         route_points = result["waypoints"] as list[str];
         route_message = result["message"] as str;
         route_cost = result["cost"] as float if result["status"] == "ready" else 0.0;
@@ -50,7 +52,7 @@ def:pub NaviJacRouteFinder() -> JsxElement {
         <header className="border-b bg-background"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4"><Link to="/" className="font-semibold text-foreground">NaviJac</Link><div className="flex items-center gap-3"><Badge variant="outline">Verified connections only</Badge><NaviJacThemeToggle /></div></div></header>
         <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-6 sm:px-8">
             <section><h1 className="text-2xl font-semibold tracking-tight">Find a room</h1><p className="mt-1 text-sm text-muted-foreground">{floor.building_name if floor else "Sumanadasa Building"} · {floor.floor_name if floor else "First Floor"}</p></section>
-            <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">Route guidance is experimental. Unknown entrances and unverified links are never treated as walkable. No live indoor tracking is available.</div>
+            <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><p>Route guidance is experimental. No live indoor tracking is available.</p><label className="mt-3 flex items-center gap-2"><input type="checkbox" checked={experimental_mode} onChange={toggle_experimental} />Allow administrator-approved experimental proposals</label><p className="mt-1 text-xs">Verified-only routing remains the default. Experimental paths are approximate and are not physically verified.</p></div>
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
                 <Card className="shadow-sm"><CardHeader><CardTitle>Floor map</CardTitle><CardDescription>Route path appears only when every traversed connection is verified.</CardDescription></CardHeader><CardContent><div className="flex min-h-80 flex-col items-center justify-center gap-3 rounded-lg border border-dashed bg-background p-6 text-center"><p className="font-medium">{route_message}</p>{if len(route_points) > 0 { <p className="text-sm text-muted-foreground">{str(len(route_points))} checkpoints · cost {str(route_cost)} administrator-defined map units</p> }}<p className="text-xs text-muted-foreground">The uploaded source image has not been attached to the editor coordinate system yet, so no route overlay is drawn on that image.</p></div></CardContent></Card>
                 <Card className="shadow-sm"><CardHeader><CardTitle>Destination search</CardTitle><CardDescription>Search by supplied room number or room name.</CardDescription></CardHeader><CardContent className="flex flex-col gap-3"><Input value={search_text} onChange={update_search} placeholder="Search room name or number" /><label className="flex flex-col gap-1 text-sm font-medium">Starting checkpoint<select className="h-10 rounded-md border bg-background px-3" value={start_id} onChange={lambda (e: ChangeEvent) { choose_start(e.target.value); }}><option value="">Select placed start</option>{for cp in checkpoints { if cp.coordinate_set { <option key={jid(cp)} value={jid(cp)}>Room {cp.room_number} checkpoint</option> } }}{for w in waypoints { <option key={jid(w)} value={jid(w)}>{w.label}</option> }}</select></label>{if loading { <p className="text-sm text-muted-foreground">Loading room directory…</p> }}{for room in rooms { if len(search_text.strip()) == 0 or search_text.lower() in room.original_name.lower() or search_text in str(room.room_number) { <Button key={jid(room)} variant="outline" className="justify-start" onClick={lambda { choose_destination(jid(room)); }}>Room {room.room_number} · {room.display_label}</Button> } }}</CardContent></Card>

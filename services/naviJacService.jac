@@ -21,7 +21,7 @@ node NaviJacRoom { has floor_id: str, room_number: int, original_name: str, leng
 node NaviJacGeometry { has floor_id: str, geometry_kind: str, x1: float = 0.0, y1: float = 0.0, x2: float = 0.0, y2: float = 0.0, label: str = ""; }
 node NaviJacCheckpoint { has floor_id: str, room_id: str, room_number: int, checkpoint_type: NaviJacCheckpointType = NaviJacCheckpointType.ROOM_ENTRANCE, placement_status: str = "Pending Placement", x: float = 0.0, y: float = 0.0, coordinate_set: bool = False, nearest_waypoint_id: str = "", qr_url: str = ""; }
 node NaviJacWaypoint { has floor_id: str, label: str = "Corridor point", x: float = 0.0, y: float = 0.0; }
-node NaviJacConnection { has floor_id: str, from_id: str, to_id: str, cost: float = 1.0, verification_status: str = "Unverified", blocked: bool = False, accessible: bool = False; }
+node NaviJacConnection { has floor_id: str, from_id: str, to_id: str, cost: float = 1.0, verification_status: str = "Unverified", provenance: str = "ADMIN_ENTERED", experimental_approved: bool = False, blocked: bool = False, accessible: bool = False; }
 node NaviJacTimetableEntry { has subject: str, weekday: str, start_time: str, end_time: str, building_id: str = "", room_id: str = "", location_name: str = "", notes: str = ""; }
 
 # Public read-only discovery endpoints use the shared catalogue.
@@ -168,6 +168,21 @@ def:protect calibrate_floor_scale(floor_id: str, known_distance_m: float, pixel_
 def:protect save_checkpoint_placement(floor_id: str, room_id: str, x: float, y: float, confirm_entrance: bool) -> NaviJacCheckpoint | None { return None; }
 def:protect save_corridor_waypoint(floor_id: str, label: str, x: float, y: float) -> NaviJacWaypoint | None { return None; }
 def:protect save_connection_edge(floor_id: str, from_id: str, to_id: str, cost: float) -> NaviJacConnection | None { return None; }
+def:protect bulk_approve_experimental_edges(map_id: str) -> dict {
+    owns_map = False;
+    for map_item in [root -->][?:NaviJacMap] { if jid(map_item) == map_id and map_item.owner_id == str(jid(root)) and not map_item.is_featured { owns_map = True; } }
+    if not owns_map { return {"ok": False, "approved": 0, "message": "Only the map owner can review this map."}; }
+    floor_ids: list[str] = [];
+    for floor_item in [root.shared -->][?:NaviJacFloor] { if floor_item.original_map_id == map_id { floor_ids = floor_ids + [jid(floor_item)]; } }
+    approved = 0;
+    for edge_item in [root.shared -->][?:NaviJacConnection] {
+        if edge_item.provenance == "EXPERIMENTAL_PROPOSAL" and not edge_item.blocked and edge_item.verification_status == "Pending" {
+            if edge_item.floor_id in floor_ids { edge_item.experimental_approved = True; approved += 1; }
+        }
+    }
+    return {"ok": True, "approved": approved, "message": str(approved) + " existing experimental proposals approved. No routes were generated."};
+}
+
 def:protect verify_connection_edge(edge_id: str, verified: bool, blocked: bool) -> NaviJacConnection | None { return None; }
 def:pub get_graph_validation_summary(floor_id: str) -> dict {
     data = get_floor_editor_data(floor_id); rooms = data["rooms"] as list[NaviJacRoom]; checkpoints = data["checkpoints"] as list[NaviJacCheckpoint]; connections = data["connections"] as list[NaviJacConnection]; pending = 0; verified = 0; unverified = 0;
@@ -175,7 +190,46 @@ def:pub get_graph_validation_summary(floor_id: str) -> dict {
     for e in connections { if not e.blocked and e.verification_status == "Verified" { verified += 1; } elif not e.blocked { unverified += 1; } }
     return {"rooms": len(rooms), "pending_rooms": pending, "verified_edges": verified, "unverified_edges": unverified, "message": str(len(rooms) - pending) + " rooms confirmed; " + str(pending) + " rooms require doorway confirmation; " + str(unverified) + " connections unverified."};
 }
-def:pub find_verified_route(floor_id: str, start_id: str, destination_checkpoint_id: str) -> dict { return {"status": "pending", "message": "Route pending: this map has no verified routing graph yet.", "waypoints": []}; }
+def:pub find_verified_route(floor_id: str, start_id: str, destination_checkpoint_id: str, experimental_mode: bool = False) -> dict {
+    start_ok = False;
+    destination_ok = False;
+    for cp in [root.shared -->][?:NaviJacCheckpoint] {
+        if cp.floor_id == floor_id and jid(cp) == start_id and cp.coordinate_set and cp.placement_status == "Verified entrance" { start_ok = True; }
+        if cp.floor_id == floor_id and jid(cp) == destination_checkpoint_id and cp.coordinate_set and cp.placement_status == "Verified entrance" { destination_ok = True; }
+    }
+    if not start_ok or not destination_ok { return {"status": "pending", "message": "Starting point or room entrance needs confirmation.", "waypoints": []}; }
+    distances: dict[str, float] = {start_id: 0.0};
+    previous: dict[str, str] = {};
+    visited: list[str] = [];
+    frontier: list[str] = [start_id];
+    while len(frontier) > 0 {
+        current = frontier[0];
+        smallest = distances[current];
+        for candidate in frontier { if distances[candidate] < smallest { current = candidate; smallest = distances[candidate]; } }
+        frontier = [candidate for candidate in frontier if candidate != current];
+        if current == destination_checkpoint_id { break; }
+        if current not in visited {
+            visited = visited + [current];
+            for e in [root.shared -->][?:NaviJacConnection] {
+                edge_allowed = e.verification_status == "Verified" or (experimental_mode and e.provenance == "EXPERIMENTAL_PROPOSAL" and e.experimental_approved);
+                if e.floor_id == floor_id and e.from_id == current and edge_allowed and not e.blocked {
+                    alternate = distances[current] + e.cost;
+                    if e.to_id not in distances or alternate < distances[e.to_id] {
+                        distances[e.to_id] = alternate;
+                        previous[e.to_id] = current;
+                        if e.to_id not in frontier { frontier = frontier + [e.to_id]; }
+                    }
+                }
+            }
+        }
+    }
+    if destination_checkpoint_id not in distances { return {"status": "unreachable", "message": "No verified, unblocked route connects these locations.", "waypoints": []}; }
+    path: list[str] = [destination_checkpoint_id];
+    cursor = destination_checkpoint_id;
+    while cursor != start_id { cursor = previous[cursor]; path = [cursor] + path; }
+    route_label = "Verified route" if not experimental_mode else "Experimental route through explicitly approved proposals";
+    return {"status": "ready", "message": route_label + "; cost is administrator-defined map units.", "waypoints": path, "cost": distances[destination_checkpoint_id]};
+}
 
 def:protect get_my_timetable() -> list[NaviJacTimetableEntry] {
     return [root -->][?:NaviJacTimetableEntry];
