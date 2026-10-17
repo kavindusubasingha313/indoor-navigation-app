@@ -1,38 +1,30 @@
-# Empty
+# NaviJac
 
-A blank canvas — the minimal jac-shadcn starter the other templates are built on.
+NaviJac is a Jac full-stack indoor map and navigation prototype. It contains a public map directory, a featured University of Moratuwa Library Ground Floor schematic, an experimental graph editor, creator-owned map flows, a personal timetable, and theme controls.
 
-One client page, the violet theme wired up, and nothing else in the way. Start
-here when none of the other templates fit, and describe what you want to build.
+**Navigation status:** the current Library plan is a demo reconstruction from a supplied overhead image. Dimensions use a printed-grid assumption, while actual entrance geometry, accessibility and walking routes remain unverified. Do not rely on it for real-world navigation. The route-selection UI is under development and its end-to-end interaction is not currently verified.
 
-## What you get
-
-- `main.jac` — a `cl { }` block with a single `def:pub app()` page (a centered
-  card). This is the whole app.
-- `components/ui/` — the two jac-shadcn primitives (`Button`, `Card`) the page
-  uses. Add more with `jac add --shadcn <name>`.
-- `styles/global.css` — semantic design tokens and the theme, already wired up.
-- `lib/utils.jac` — `cn()` for merging class names.
-
-## Run it
-
-```bash
+## Requirements and run
+Use Jac 0.34.23. From this directory:
+```sh
 jac install
-jac start --dev
+jac check main.jac
+jac start --dev main.jac
 ```
+Open the URL emitted by Jac. Environment variables, tests, architecture and known limitations are described in [SETUP.md](SETUP.md), [ARCHITECTURE.md](ARCHITECTURE.md), [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md), and [KNOWN_ISSUES.md](KNOWN_ISSUES.md). Codex-specific instructions are in [AGENTS.md](AGENTS.md).
 
-Open <http://localhost:8000>.
+## Current routes
+- `/` — public map directory/home.
+- `/maps/sumanadasa/first-floor/route` — featured ground-floor visitor demo (legacy URL slug).
+- `/maps/sumanadasa/first-floor/edit` — experimental editor (legacy URL slug).
+- `/creator` — creator account and map workspace.
+- `/timetable` — personal timetable.
 
-## Where to go next
+## Project layout
+- `main.jac` — full-stack entry and manual router.
+- `services/naviJacService.jac` — graph models and service functions.
+- `components/` — pages, floor map, theme; `components/ui/` — managed shadcn primitives.
+- `styles/global.css`, `jac.toml` — theme, Tailwind/Vite and dependencies.
 
-- **Add a page / routing** — create a `pages/` directory; files become routes
-  by convention. See `jac guide jac-cl-routing`.
-- **Add a backend** — create `services/foo.sv.jac` with `def:pub` functions;
-  each becomes a `POST /function/<name>` REST endpoint automatically, and data
-  hung off `root` persists with no database to set up (Jac stores the graph for
-  you — SQLite in `.jac/data/` by default, MongoDB via `MONGODB_URI`). See
-  `jac guide jac-sv-endpoints` and `jac guide jac-sv-persistence`.
-- **Add auth** — see `jac guide jac-sv-auth` and `jac guide jac-cl-auth`.
-
-`AGENTS.md` lists the reference guides bundled with the compiler; read them
-before writing Jac — the syntax is easy to confuse with Python or JSX.
+## Testing caveat
+`jac check main.jac` passed during handover with existing warnings. No Jac test files were found. The browser route interaction has known errors and is not signed off. See the status and issue documents before using the demo or continuing implementation.
