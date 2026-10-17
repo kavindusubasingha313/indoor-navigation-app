@@ -194,8 +194,8 @@ def:pub find_verified_route(floor_id: str, start_id: str, destination_checkpoint
     start_ok = False;
     destination_ok = False;
     for cp in [root.shared -->][?:NaviJacCheckpoint] {
-        if cp.floor_id == floor_id and jid(cp) == start_id and cp.coordinate_set and cp.placement_status == "Verified entrance" { start_ok = True; }
-        if cp.floor_id == floor_id and jid(cp) == destination_checkpoint_id and cp.coordinate_set and cp.placement_status == "Verified entrance" { destination_ok = True; }
+        if cp.floor_id == floor_id and jid(cp) == start_id and cp.coordinate_set and cp.placement_status == "Verified entrance" and cp.checkpoint_type == NaviJacCheckpointType.ROOM_ENTRANCE { start_ok = True; }
+        if cp.floor_id == floor_id and jid(cp) == destination_checkpoint_id and cp.coordinate_set and cp.placement_status == "Verified entrance" and cp.checkpoint_type == NaviJacCheckpointType.ROOM_ENTRANCE { destination_ok = True; }
     }
     if not start_ok or not destination_ok { return {"status": "pending", "message": "Starting point or room entrance needs confirmation.", "waypoints": []}; }
     distances: dict[str, float] = {start_id: 0.0};
@@ -223,7 +223,11 @@ def:pub find_verified_route(floor_id: str, start_id: str, destination_checkpoint
             }
         }
     }
-    if destination_checkpoint_id not in distances { return {"status": "unreachable", "message": "No verified, unblocked route connects these locations.", "waypoints": []}; }
+    if destination_checkpoint_id not in distances {
+        message = "No verified, unblocked route connects these locations.";
+        if experimental_mode { message = "No verified or explicitly approved experimental route connects these locations."; }
+        return {"status": "unreachable", "message": message, "waypoints": []};
+    }
     path: list[str] = [destination_checkpoint_id];
     cursor = destination_checkpoint_id;
     while cursor != start_id { cursor = previous[cursor]; path = [cursor] + path; }
