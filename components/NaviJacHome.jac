@@ -1,201 +1,27 @@
-import from .ui.button { Button }
 import from .ui.card { Card, CardHeader, CardTitle, CardDescription, CardContent }
 import from .ui.badge { Badge }
-import from .ui.input { Input }
+import from .ui.button { Button }
 import from "@jac/runtime" { Link }
-sv import from ..services.naviJacService { NaviJacMap, get_public_maps, create_public_map, upload_floor_plan }
-
+sv import from ..services.naviJacService { NaviJacMap, get_public_maps, get_featured_demo, seed_sumanadasa_floor }
 
 def:pub NaviJacHome() -> JsxElement {
-    has maps: list[NaviJacMap] = [],
-        map_name: str = "",
-        map_description: str = "",
-        feedback: str = "",
-        loading: bool = True,
-        uploading_map_id: str = "";
-
+    has maps: list[NaviJacMap] = [], featured: NaviJacMap | None = None, loading: bool = True;
     async can with entry {
+        _floor_id = await seed_sumanadasa_floor();
         maps = await get_public_maps();
+        featured = await get_featured_demo();
         loading = False;
     }
-
-    def handle_name(e: ChangeEvent) { map_name = e.target.value; }
-    def handle_description(e: ChangeEvent) { map_description = e.target.value; }
-
-    async def handle_create -> None {
-        feedback = "";
-        if len(map_name.strip()) == 0 {
-            feedback = "Enter a building name to continue.";
-        } else {
-            created = await create_public_map(map_name, map_description);
-            if created is None {
-                feedback = "A building name is required.";
-            } else {
-                maps = maps + [created];
-                map_name = "";
-                map_description = "";
-                feedback = "Public building added. You can now upload its floor plan.";
-            }
-        }
-    }
-
-    async def handle_plan_change(e: ChangeEvent) {
-        file = e.target.files[0];
-        if not file {
-            return;
-        }
-        mime_type: str = file.type;
-        if mime_type != "image/png" and mime_type != "image/jpeg" {
-            feedback = "Choose a PNG or JPG floor-plan image.";
-            return;
-        }
-        if file.size > 5000000 {
-            feedback = "The image must be 5 MB or smaller.";
-            return;
-        }
-        reader: any = new(FileReader);
-        reader.onload = lambda (_event: Event) {
-            raw_result = reader.result as str;
-            split_data = raw_result.split(",");
-            if len(split_data) < 2 {
-                feedback = "The selected image could not be read.";
-                return;
-            }
-            async def save_plan -> None {
-                updated = await upload_floor_plan(uploading_map_id, split_data[1], mime_type);
-                if updated is None {
-                    feedback = "The floor plan could not be saved. Please try again.";
-                } else {
-                    maps = [updated if jid(item) == uploading_map_id else item for item in maps];
-                    feedback = "Floor plan saved and ready to view.";
-                }
-                uploading_map_id = "";
-            }
-            save_plan();
-        };
-        uploading_map_id = e.target.dataset["mapid"] as str;
-        feedback = "Reading floor-plan image…";
-        reader.readAsDataURL(file);
-    }
-
     return <div className="min-h-svh bg-muted/40 text-foreground">
-        <header className="border-b bg-background">
-            <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-5 sm:px-8">
-                <Link to="/" className="flex items-center gap-3 text-foreground no-underline">
-                    <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold">N</span>
-                    <span className="text-lg font-semibold tracking-tight">NaviJac</span>
-                </Link>
-                <Badge variant="secondary">Public map directory</Badge>
-            </div>
-        </header>
-        <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-5 py-8 sm:px-8 sm:py-12">
-            <section className="grid gap-6 rounded-2xl border bg-card p-6 shadow-sm md:grid-cols-[1fr_auto] md:items-end md:p-9">
-                <div className="flex max-w-3xl flex-col gap-4">
-                    <Badge variant="outline" className="w-fit">Indoor navigation foundation</Badge>
-                    <h1 className="text-balance text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">Find your way through the building.</h1>
-                    <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">Start with one floor plan. Add verified walkable routes and more floors as the map develops.</p>
-                </div>
-                <div className="flex flex-col gap-1 rounded-xl bg-muted/60 p-4 md:min-w-52">
-                    <span className="text-sm font-medium">Open to public visitors</span>
-                    <span className="text-sm text-muted-foreground">Browse the building directory and view uploaded floor plans.</span>
-                </div>
+        <header className="border-b bg-background"><div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-8"><Link to="/" className="flex items-center gap-3 text-foreground no-underline"><span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold">N</span><span className="text-lg font-semibold tracking-tight">NaviJac</span></Link><div className="flex items-center gap-3"><Badge variant="secondary">Indoor maps</Badge><Link to="/creator" className="text-sm font-medium text-primary">Map creator sign in</Link></div></div></header>
+        <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-5 py-7 sm:px-8 sm:py-10">
+            <section className="grid items-center gap-8 rounded-2xl border bg-card p-6 shadow-sm md:grid-cols-[1.1fr_0.9fr] md:p-9">
+                <div className="flex flex-col items-start gap-5"><Badge variant="outline">Explore · create · navigate</Badge><h1 className="text-balance text-4xl font-semibold leading-tight tracking-tight md:text-5xl">Navigate Any Building. Create Your Own Indoor Maps.</h1><p className="max-w-2xl text-base leading-relaxed text-muted-foreground">Explore building maps, discover room information, and follow verified indoor routes. Map creators can build and publish their own maps.</p><div className="flex flex-wrap gap-3"><Link to="/maps/sumanadasa/first-floor/route"><Button>Explore Demo Map</Button></Link><Link to="/creator"><Button variant="outline">Create Your Own Map</Button></Link></div></div>
+                <Card className="overflow-hidden shadow-sm"><CardHeader><CardTitle>Featured demonstration</CardTitle><CardDescription>Electrical Engineering · University of Moratuwa</CardDescription></CardHeader><CardContent className="flex flex-col gap-4"><div className="flex min-h-48 flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/30 p-6 text-center">{if featured and featured.floor_plan_data { <img src={"data:" + featured.floor_plan_type + ";base64," + featured.floor_plan_data} alt="Sumanadasa Building first-floor plan" className="max-h-64 w-full object-contain" /> } else { <p className="font-medium">First-floor room directory is ready to explore</p> }}<p className="text-xs text-muted-foreground">{featured.description if featured else "Dr. L. H. Sumanadasa Building · First Floor"}</p></div><div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Navigation availability depends on verified room entrances and corridor connections. No unverified paths are shown.</div><Link to="/maps/sumanadasa/first-floor/route"><Button variant="outline" className="w-full">Open featured floor</Button></Link></CardContent></Card>
             </section>
-
-            <section className="flex flex-col gap-5">
-                <div className="flex flex-wrap items-end justify-between gap-4">
-                    <div className="flex flex-col gap-1">
-                        <h2 className="text-2xl font-semibold tracking-tight">Public buildings</h2>
-                        <p className="text-sm text-muted-foreground">Browse the current single-floor experimental maps.</p>
-                    </div>
-                    <span className="text-sm text-muted-foreground">{str(len(maps))} public maps</span>
-                </div>
-                <Card className="shadow-sm">
-                    <CardHeader>
-                        <CardTitle>Building directory</CardTitle>
-                        <CardDescription>Floor plans appear here after a map creator uploads them.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {if loading {
-                            <div className="rounded-xl border border-dashed bg-muted/30 p-8 text-center text-sm text-muted-foreground">Loading public maps…</div>
-                            skip;
-                        }}
-                        {if len(maps) == 0 {
-                            <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed bg-muted/30 px-5 py-12 text-center">
-                                <span className="text-base font-semibold">No public maps yet</span>
-                                <span className="max-w-md text-sm text-muted-foreground">Create a building record, then attach its floor plan to make it available here.</span>
-                            </div>
-                            skip;
-                        }}
-                        <div className="grid gap-5 md:grid-cols-2">
-                            {for building in maps {
-                                <article key={jid(building)} className="flex min-w-0 flex-col gap-4 rounded-xl border bg-background p-4 shadow-sm">
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div className="flex flex-col gap-1">
-                                            <h3 className="text-lg font-semibold">{building.name}</h3>
-                                            <p className="text-sm text-muted-foreground">{building.description if len(building.description) > 0 else "Single-floor building plan"}</p>
-                                        </div>
-                                        <Badge variant="secondary">Public</Badge>
-                                    </div>
-                                    {if building.floor_plan_data {
-                                        <div className="overflow-hidden rounded-lg border bg-muted/30">
-                                            <img src={"data:" + building.floor_plan_type + ";base64," + building.floor_plan_data} alt={"Floor plan for " + building.name} className="max-h-[28rem] w-full object-contain" />
-                                        </div>
-                                    } else {
-                                        <div className="flex min-h-48 flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/30 p-6 text-center">
-                                            <span className="font-medium">Floor plan not uploaded</span>
-                                            <span className="text-sm text-muted-foreground">A creator can attach a PNG or JPG map.</span>
-                                        </div>
-                                    }}
-                                    <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
-                                        <span className="text-sm text-muted-foreground">Floor 1 · routes await manual verification</span>
-                                        <div className="flex gap-4"><Link to="/maps/sumanadasa/first-floor/route" className="text-sm font-medium text-primary hover:underline">Find a room</Link><Link to="/maps/sumanadasa/first-floor/edit" className="text-sm font-medium text-primary hover:underline">Open floor editor</Link></div>
-                                    </div>
-                                </article>
-                            }}
-                        </div>
-                    </CardContent>
-                </Card>
-            </section>
-
-            <section className="grid gap-5 lg:grid-cols-[1fr_1fr]">
-                <Card className="shadow-sm">
-                    <CardHeader>
-                        <CardTitle>Create a building map</CardTitle>
-                        <CardDescription>Add a public building record, then upload its single-floor plan.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <form className="flex flex-col gap-4" onSubmit={lambda (e: FormEvent) { e.preventDefault(); handle_create(); }}>
-                            <label className="flex flex-col gap-2 text-sm font-medium">Building name
-                                <Input placeholder="For example, Engineering Building" value={map_name} onChange={handle_name} />
-                            </label>
-                            <label className="flex flex-col gap-2 text-sm font-medium">Description <span className="font-normal text-muted-foreground">Optional</span>
-                                <textarea className="min-h-24 resize-y rounded-md border bg-background px-3 py-2 font-normal shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="A short public description" value={map_description} onChange={handle_description} />
-                            </label>
-                            <Button type="submit" className="w-full sm:w-fit">Create public building</Button>
-                        </form>
-                    </CardContent>
-                </Card>
-                <Card className="shadow-sm">
-                    <CardHeader>
-                        <CardTitle>Upload a floor plan</CardTitle>
-                        <CardDescription>Select a building below, then upload its PNG or JPG plan. Maximum file size is 5 MB.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex flex-col gap-4">
-                        {if len(maps) == 0 {
-                            <p className="rounded-lg border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">Create a public building first to enable its floor-plan upload.</p>
-                            skip;
-                        }}
-                        {for building in maps {
-                            <label key={jid(building)} className="flex flex-col gap-2 rounded-lg border bg-background p-4 text-sm font-medium">
-                                {"Upload plan for " + building.name}
-                                <input type="file" accept="image/png,image/jpeg" data-mapid={jid(building)} onChange={handle_plan_change} className="block w-full cursor-pointer rounded-md border bg-background p-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground" />
-                            </label>
-                        }}
-                        {feedback and <p role="status" className="rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground">{feedback}</p>}
-                    </CardContent>
-                </Card>
-            </section>
-            <footer className="border-t pt-5 text-xs text-muted-foreground">NaviJac experimental map · Route geometry and directions are not yet defined.</footer>
+            <section className="flex flex-col gap-5"><div className="flex flex-wrap items-end justify-between gap-4"><div><h2 className="text-2xl font-semibold tracking-tight">Explore published maps</h2><p className="text-sm text-muted-foreground">Public maps are browseable without an account.</p></div><Link to="/creator" className="text-sm font-medium text-primary">Manage your maps</Link></div><Card className="shadow-sm"><CardHeader><CardTitle>Published building maps</CardTitle><CardDescription>Featured demonstration first, followed by owner-published buildings.</CardDescription></CardHeader><CardContent>{if loading { <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Loading public maps…</p>; skip; }}{if len(maps) == 0 { <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No other published maps yet. Create an account to start a private draft.</p>; skip; }}<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{for building in maps { <article key={jid(building)} className="flex flex-col gap-3 rounded-xl border bg-background p-4 shadow-sm"><div className="flex items-start justify-between gap-3"><div><h3 className="font-semibold">{building.name}</h3><p className="mt-1 text-sm text-muted-foreground">{building.description if len(building.description) > 0 else "Published indoor map"}</p></div><Badge variant="secondary">Public</Badge></div><p className="text-xs text-muted-foreground">{str(building.floor_count)} floor(s)</p>{if building.is_featured { <Link to="/maps/sumanadasa/first-floor/route" className="text-sm font-medium text-primary hover:underline">Explore featured map</Link> } else { <span className="text-xs text-muted-foreground">Map viewer setup pending</span> }}</article> }}</div></CardContent></Card></section>
+            <section className="grid gap-5 md:grid-cols-2"><Card className="shadow-sm"><CardHeader><CardTitle>Room directory</CardTitle><CardDescription>Browse room names and provisional details in the featured floor map.</CardDescription></CardHeader><CardContent><Link to="/maps/sumanadasa/first-floor/route"><Button variant="outline">Search rooms</Button></Link></CardContent></Card><Card className="shadow-sm"><CardHeader><CardTitle>Create a map for your building</CardTitle><CardDescription>Sign in to create private drafts and publish maps you own.</CardDescription></CardHeader><CardContent><Link to="/creator"><Button>Create your own map</Button></Link></CardContent></Card></section>
+            <footer className="border-t pt-5 text-xs text-muted-foreground">NaviJac public map explorer · Route guidance appears only when map connections are verified.</footer>
         </main>
     </div>;
 }
