@@ -2,6 +2,7 @@ import from .ui.card { Card, CardHeader, CardTitle, CardDescription, CardContent
 import from .ui.button { Button }
 import from .ui.input { Input }
 import from .ui.badge { Badge }
+import from .NaviJacThemeToggle { NaviJacThemeToggle }
 import from "@jac/runtime" { Link, jacLogin, jacSignup, jacLogout, jacIsLoggedIn }
 sv import from ..services.naviJacService { NaviJacMap, get_owned_maps, create_owned_map, update_owned_map, publish_owned_map }
 
@@ -79,7 +80,7 @@ def:pub NaviJacCreator() -> JsxElement {
     def handle_logout(e: MouseEvent) { jacLogout(); signed_in = False; maps = []; feedback = "Signed out."; }
 
     return <div className="min-h-svh bg-muted/40 text-foreground">
-        <header className="border-b bg-background"><div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-4"><Link to="/" className="text-lg font-semibold text-foreground">NaviJac</Link><div className="flex gap-4 text-sm"><Link to="/" className="text-primary">Explore maps</Link><Link to="/maps/sumanadasa/first-floor/route" className="text-primary">Featured demo</Link></div></div></header>
+        <header className="border-b bg-background"><div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-4"><Link to="/" className="text-lg font-semibold text-foreground">NaviJac</Link><div className="flex flex-wrap items-center gap-4 text-sm"><Link to="/" className="text-primary">Explore maps</Link><Link to="/maps/sumanadasa/first-floor/route" className="text-primary">Featured demo</Link><Link to="/timetable" className="text-primary">My timetable</Link><NaviJacThemeToggle /></div></div></header>
         <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-8 sm:px-8">
             <section><h1 className="text-3xl font-semibold tracking-tight">Map creator workspace</h1><p className="mt-2 max-w-2xl text-muted-foreground">Create private building drafts and manage only maps owned by your signed-in account.</p></section>
             {if not signed_in {

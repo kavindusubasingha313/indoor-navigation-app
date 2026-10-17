@@ -14,7 +14,7 @@ api_key = "${OPENAI_API_KEY:-}"
 [jac-shadcn]
 style = "vega"
 baseColor = "stone"
-theme = "teal"
+theme = "violet"
 font = "figtree"
 radius = "large"
 menuAccent = "bold"

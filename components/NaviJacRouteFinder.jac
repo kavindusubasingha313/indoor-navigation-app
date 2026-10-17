@@ -2,6 +2,7 @@ import from .ui.card { Card, CardHeader, CardTitle, CardDescription, CardContent
 import from .ui.button { Button }
 import from .ui.badge { Badge }
 import from .ui.input { Input }
+import from .NaviJacThemeToggle { NaviJacThemeToggle }
 import from "@jac/runtime" { Link }
 sv import from ..services.naviJacService { NaviJacFloor, NaviJacRoom, NaviJacCheckpoint, NaviJacWaypoint, NaviJacConnection, seed_sumanadasa_floor, get_floor_editor_data, find_verified_route }
 
@@ -46,7 +47,7 @@ def:pub NaviJacRouteFinder() -> JsxElement {
     }
 
     return <div className="min-h-svh bg-muted/40 text-foreground">
-        <header className="border-b bg-background"><div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-4"><Link to="/" className="font-semibold text-foreground">NaviJac</Link><Badge variant="outline">Verified connections only</Badge></div></header>
+        <header className="border-b bg-background"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4"><Link to="/" className="font-semibold text-foreground">NaviJac</Link><div className="flex items-center gap-3"><Badge variant="outline">Verified connections only</Badge><NaviJacThemeToggle /></div></div></header>
         <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-6 sm:px-8">
             <section><h1 className="text-2xl font-semibold tracking-tight">Find a room</h1><p className="mt-1 text-sm text-muted-foreground">{floor.building_name if floor else "Sumanadasa Building"} · {floor.floor_name if floor else "First Floor"}</p></section>
             <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">Route guidance is experimental. Unknown entrances and unverified links are never treated as walkable. No live indoor tracking is available.</div>

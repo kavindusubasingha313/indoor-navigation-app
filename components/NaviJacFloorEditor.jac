@@ -2,6 +2,7 @@ import from .ui.card { Card, CardHeader, CardTitle, CardDescription, CardContent
 import from .ui.button { Button }
 import from .ui.input { Input }
 import from .ui.badge { Badge }
+import from .NaviJacThemeToggle { NaviJacThemeToggle }
 import from "@jac/runtime" { Link }
 sv import from ..services.naviJacService { NaviJacFloor, NaviJacRoom, NaviJacGeometry, NaviJacCheckpoint, NaviJacWaypoint, NaviJacConnection, seed_sumanadasa_floor, get_floor_editor_data, save_floor_editor_changes, calibrate_floor_scale, save_checkpoint_placement, save_corridor_waypoint, save_connection_edge, verify_connection_edge, get_graph_validation_summary }
 
@@ -112,7 +113,7 @@ def:pub NaviJacFloorEditor() -> JsxElement {
     }
 
     return <div className="min-h-svh bg-muted/40 text-foreground">
-        <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur"><div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6"><div className="flex items-center gap-3"><Link to="/" className="text-sm text-muted-foreground hover:text-foreground">NaviJac</Link><span>/</span><span className="font-semibold">First-floor editor</span></div><Badge variant="outline">Experimental workspace</Badge></div></header>
+        <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur"><div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6"><div className="flex items-center gap-3"><Link to="/" className="text-sm text-muted-foreground hover:text-foreground">NaviJac</Link><span>/</span><span className="font-semibold">First-floor editor</span></div><div className="flex items-center gap-3"><Badge variant="outline">Experimental workspace</Badge><NaviJacThemeToggle /></div></div></header>
         <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 px-4 py-5 sm:px-6">
             <section className="flex flex-wrap items-end justify-between gap-4"><div className="flex flex-col gap-1"><h1 className="text-2xl font-semibold tracking-tight">{floor.building_name if floor else "Dr. L. H. Sumanadasa Building"} · {floor.floor_name if floor else "First Floor"}</h1><p className="text-sm text-muted-foreground">Electrical Engineering · University of Moratuwa</p></div><Button onClick={save_room}>Save room changes</Button></section>
             <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><p className="font-semibold">Estimated plan; not verified architectural measurements</p><p className="mt-1">Room 1’s 14 m horizontal span corresponds to approximately 154 px in the supplied schematic. A single reference does not establish uniform scale. Do not use for construction, accessibility clearances, or accurate travel times. No doors or walkable paths have been inferred.</p></div>

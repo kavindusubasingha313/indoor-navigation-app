@@ -1,6 +1,7 @@
 import from .ui.card { Card, CardHeader, CardTitle, CardDescription, CardContent }
 import from .ui.badge { Badge }
 import from .ui.button { Button }
+import from .NaviJacThemeToggle { NaviJacThemeToggle }
 import from "@jac/runtime" { Link }
 sv import from ..services.naviJacService { NaviJacMap, get_public_maps, get_featured_demo, seed_sumanadasa_floor }
 
@@ -13,7 +14,7 @@ def:pub NaviJacHome() -> JsxElement {
         loading = False;
     }
     return <div className="min-h-svh bg-muted/40 text-foreground">
-        <header className="border-b bg-background"><div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-8"><Link to="/" className="flex items-center gap-3 text-foreground no-underline"><span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold">N</span><span className="text-lg font-semibold tracking-tight">NaviJac</span></Link><div className="flex items-center gap-3"><Badge variant="secondary">Indoor maps</Badge><Link to="/creator" className="text-sm font-medium text-primary">Map creator sign in</Link></div></div></header>
+        <header className="border-b bg-background"><div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-8"><Link to="/" className="flex items-center gap-3 text-foreground no-underline"><span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold">N</span><span className="text-lg font-semibold tracking-tight">NaviJac</span></Link><div className="flex flex-wrap items-center gap-3"><Badge variant="secondary">Indoor maps</Badge><Link to="/timetable" className="text-sm font-medium text-primary">My timetable</Link><Link to="/creator" className="text-sm font-medium text-primary">Map creator sign in</Link><NaviJacThemeToggle /></div></div></header>
         <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-5 py-7 sm:px-8 sm:py-10">
             <section className="grid items-center gap-8 rounded-2xl border bg-card p-6 shadow-sm md:grid-cols-[1.1fr_0.9fr] md:p-9">
                 <div className="flex flex-col items-start gap-5"><Badge variant="outline">Explore · create · navigate</Badge><h1 className="text-balance text-4xl font-semibold leading-tight tracking-tight md:text-5xl">Navigate Any Building. Create Your Own Indoor Maps.</h1><p className="max-w-2xl text-base leading-relaxed text-muted-foreground">Explore building maps, discover room information, and follow verified indoor routes. Map creators can build and publish their own maps.</p><div className="flex flex-wrap gap-3"><Link to="/maps/sumanadasa/first-floor/route"><Button>Explore Demo Map</Button></Link><Link to="/creator"><Button variant="outline">Create Your Own Map</Button></Link></div></div>

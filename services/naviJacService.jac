@@ -22,6 +22,7 @@ node NaviJacGeometry { has floor_id: str, geometry_kind: str, x1: float = 0.0, y
 node NaviJacCheckpoint { has floor_id: str, room_id: str, room_number: int, checkpoint_type: NaviJacCheckpointType = NaviJacCheckpointType.ROOM_ENTRANCE, placement_status: str = "Pending Placement", x: float = 0.0, y: float = 0.0, coordinate_set: bool = False, nearest_waypoint_id: str = "", qr_url: str = ""; }
 node NaviJacWaypoint { has floor_id: str, label: str = "Corridor point", x: float = 0.0, y: float = 0.0; }
 node NaviJacConnection { has floor_id: str, from_id: str, to_id: str, cost: float = 1.0, verification_status: str = "Unverified", blocked: bool = False, accessible: bool = False; }
+node NaviJacTimetableEntry { has subject: str, weekday: str, start_time: str, end_time: str, building_id: str = "", room_id: str = "", location_name: str = "", notes: str = ""; }
 
 # Public read-only discovery endpoints use the shared catalogue.
 def:pub get_public_maps() -> list[NaviJacMap] { return [root.shared -->][?:NaviJacMap, is_public]; }
@@ -54,6 +55,57 @@ def:protect upload_floor_plan(map_id: str, image_data: str, image_type: str) -> 
     if image_type != "image/png" and image_type != "image/jpeg" { return None; }
     for m in [root -->][?:NaviJacMap] { if jid(m) == map_id and m.owner_id == str(jid(root)) { m.floor_plan_data = image_data; m.floor_plan_type = image_type; return m; } }
     return None;
+}
+
+def:protect get_my_timetable() -> list[NaviJacTimetableEntry] {
+    return [root -->][?:NaviJacTimetableEntry];
+}
+
+def _valid_time(value: str) -> bool {
+    parts = value.split(":");
+    if len(parts) != 2 { return False; }
+    hour = int(parts[0]); minute = int(parts[1]);
+    return hour >= 0 and hour < 24 and minute >= 0 and minute < 60;
+}
+
+def _time_minutes(value: str) -> int {
+    parts = value.split(":");
+    return int(parts[0]) * 60 + int(parts[1]);
+}
+
+def:protect create_timetable_entry(subject: str, weekday: str, start_time: str, end_time: str, building_id: str, room_id: str, location_name: str, notes: str) -> dict {
+    days: list[str] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    if len(subject.strip()) == 0 { return {"ok": False, "message": "Enter an event or subject name."}; }
+    if weekday not in days { return {"ok": False, "message": "Choose a valid weekday."}; }
+    if not _valid_time(start_time) or not _valid_time(end_time) or _time_minutes(end_time) <= _time_minutes(start_time) { return {"ok": False, "message": "End time must be later than a valid start time."}; }
+    for existing in [root -->][?:NaviJacTimetableEntry] {
+        if existing.weekday == weekday and _time_minutes(start_time) < _time_minutes(existing.end_time) and _time_minutes(end_time) > _time_minutes(existing.start_time) { return {"ok": False, "message": "This session overlaps another saved session."}; }
+    }
+    root ++> NaviJacTimetableEntry(subject=subject.strip(), weekday=weekday, start_time=start_time, end_time=end_time, building_id=building_id.strip(), room_id=room_id.strip(), location_name=location_name.strip(), notes=notes.strip());
+    return {"ok": True, "message": "Timetable session saved."};
+}
+
+def:protect preview_timetable_csv(csv_text: str) -> dict {
+    lines = csv_text.strip().split(chr(10));
+    rows: list[dict] = [];
+    errors: list[str] = [];
+    if len(lines) < 2 { return {"rows": rows, "errors": ["Paste a header row and at least one timetable row."], "valid": False}; }
+    header = [h.strip().lower() for h in lines[0].split(",")];
+    required: list[str] = ["subject", "weekday", "start_time", "end_time"];
+    for col in required { if col not in header { errors = errors + ["CSV is missing the required column: " + col]; } }
+    if len(errors) > 0 { return {"rows": rows, "errors": errors, "valid": False}; }
+    subject_i = header.index("subject"); weekday_i = header.index("weekday"); start_i = header.index("start_time"); end_i = header.index("end_time");
+    location_i = header.index("location") if "location" in header else -1;
+    for line_no in range(1, len(lines)) {
+        cells = [c.strip() for c in lines[line_no].split(",")];
+        if len(cells) != len(header) { errors = errors + ["Row " + str(line_no + 1) + " has an unexpected number of columns."]; }
+        else {
+            subject = cells[subject_i]; weekday = cells[weekday_i]; start_value = cells[start_i]; end_value = cells[end_i]; location = cells[location_i] if location_i >= 0 else "";
+            if len(subject) == 0 or not _valid_time(start_value) or not _valid_time(end_value) or _time_minutes(end_value) <= _time_minutes(start_value) { errors = errors + ["Row " + str(line_no + 1) + " has an invalid subject or time range."]; }
+            else { rows = rows + [{"subject": subject, "weekday": weekday, "start_time": start_value, "end_time": end_value, "location_name": location}]; }
+        }
+    }
+    return {"rows": rows, "errors": errors, "valid": len(errors) == 0};
 }
 
 # Public featured demo initialization is idempotent and never resets existing rooms or graph geometry.
@@ -124,3 +176,76 @@ def:pub get_graph_validation_summary(floor_id: str) -> dict {
     return {"rooms": len(rooms), "pending_rooms": pending, "verified_edges": verified, "unverified_edges": unverified, "message": str(len(rooms) - pending) + " rooms confirmed; " + str(pending) + " rooms require doorway confirmation; " + str(unverified) + " connections unverified."};
 }
 def:pub find_verified_route(floor_id: str, start_id: str, destination_checkpoint_id: str) -> dict { return {"status": "pending", "message": "Route pending: this map has no verified routing graph yet.", "waypoints": []}; }
+
+def:protect get_my_timetable() -> list[NaviJacTimetableEntry] {
+    return [root -->][?:NaviJacTimetableEntry];
+}
+
+def _valid_time(value: str) -> bool {
+    parts = value.split(":");
+    if len(parts) != 2 { return False; }
+    hour = int(parts[0]);
+    minute = int(parts[1]);
+    return hour >= 0 and hour < 24 and minute >= 0 and minute < 60;
+}
+
+def _time_minutes(value: str) -> int {
+    parts = value.split(":");
+    return int(parts[0]) * 60 + int(parts[1]);
+}
+
+def _valid_weekday(day: str) -> bool {
+    days: list[str] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    return day in days;
+}
+
+def:protect create_timetable_entry(subject: str, weekday: str, start_time: str, end_time: str, building_id: str, room_id: str, location_name: str, notes: str) -> dict {
+    if len(subject.strip()) == 0 { return {"ok": False, "message": "Enter an event or subject name."}; }
+    if not _valid_weekday(weekday) { return {"ok": False, "message": "Choose a valid weekday."}; }
+    if not _valid_time(start_time) or not _valid_time(end_time) or _time_minutes(end_time) <= _time_minutes(start_time) { return {"ok": False, "message": "End time must be later than a valid start time."}; }
+    for existing in [root -->][?:NaviJacTimetableEntry] {
+        if existing.weekday == weekday and _time_minutes(start_time) < _time_minutes(existing.end_time) and _time_minutes(end_time) > _time_minutes(existing.start_time) { return {"ok": False, "message": "This session overlaps another saved session."}; }
+    }
+    root ++> NaviJacTimetableEntry(subject=subject.strip(), weekday=weekday, start_time=start_time, end_time=end_time, building_id=building_id.strip(), room_id=room_id.strip(), location_name=location_name.strip(), notes=notes.strip());
+    return {"ok": True, "message": "Timetable session saved."};
+}
+
+def:protect preview_timetable_csv(csv_text: str) -> dict {
+    lines = csv_text.strip().split(chr(10));
+    rows: list[dict] = [];
+    errors: list[str] = [];
+    if len(lines) < 2 { return {"rows": rows, "errors": ["Paste a header row and at least one timetable row."], "valid": False}; }
+    header = [h.strip().lower() for h in lines[0].split(",")];
+    required: list[str] = ["subject", "weekday", "start_time", "end_time"];
+    for col in required { if col not in header { errors = errors + ["CSV is missing the required column: " + col]; } }
+    if len(errors) > 0 { return {"rows": rows, "errors": errors, "valid": False}; }
+    subject_i = header.index("subject"); weekday_i = header.index("weekday"); start_i = header.index("start_time"); end_i = header.index("end_time");
+    location_i = header.index("location") if "location" in header else -1;
+    for line_no in range(1, len(lines)) {
+        cells = [c.strip() for c in lines[line_no].split(",")];
+        if len(cells) != len(header) { errors = errors + ["Row " + str(line_no + 1) + " has an unexpected number of columns."]; }
+        else {
+            subject = cells[subject_i]; weekday = cells[weekday_i]; start_value = cells[start_i]; end_value = cells[end_i]; location = cells[location_i] if location_i >= 0 else "";
+            if len(subject) == 0 or not _valid_weekday(weekday) or not _valid_time(start_value) or not _valid_time(end_value) or _time_minutes(end_value) <= _time_minutes(start_value) { errors = errors + ["Row " + str(line_no + 1) + " has an invalid subject, weekday, or time range."]; }
+            else {
+                overlaps_saved = False;
+                for existing in [root -->][?:NaviJacTimetableEntry] { if existing.weekday == weekday and _time_minutes(start_value) < _time_minutes(existing.end_time) and _time_minutes(end_value) > _time_minutes(existing.start_time) { overlaps_saved = True; } }
+                if overlaps_saved { errors = errors + ["Row " + str(line_no + 1) + " overlaps a saved session."]; }
+                for prior in rows { if prior["weekday"] == weekday and _time_minutes(start_value) < _time_minutes(prior["end_time"] as str) and _time_minutes(end_value) > _time_minutes(prior["start_time"] as str) { overlaps_saved = True; } }
+                if overlaps_saved { errors = errors + ["Row " + str(line_no + 1) + " overlaps another imported session."]; }
+                rows = rows + [{"subject": subject, "weekday": weekday, "start_time": start_value, "end_time": end_value, "location_name": location}];
+            }
+        }
+    }
+    return {"rows": rows, "errors": errors, "valid": len(errors) == 0};
+}
+
+def:protect import_timetable_csv(csv_text: str) -> dict {
+    result = preview_timetable_csv(csv_text);
+    if not (result["valid"] as bool) { return {"ok": False, "message": "CSV validation found errors. Correct them before importing.", "errors": result["errors"]}; }
+    rows = result["rows"] as list[dict];
+    for row in rows {
+        root ++> NaviJacTimetableEntry(subject=row["subject"] as str, weekday=row["weekday"] as str, start_time=row["start_time"] as str, end_time=row["end_time"] as str, location_name=row["location_name"] as str);
+    }
+    return {"ok": True, "message": str(len(rows)) + " timetable sessions imported."};
+}
