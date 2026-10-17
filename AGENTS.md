@@ -44,3 +44,12 @@ The IDE preview is platform-managed; do not start or kill another server in that
 - Keep mobile layout responsive; use semantic theme tokens and existing components.
 - Check the actual rendered screen at phone and desktop widths after UI changes. Report test commands/results honestly.
 - Never claim GPS is indoor positioning. Never present the demo’s estimated map-derived distances as measured walking distances.
+
+## Review guidelines
+- Prioritize correctness, authorization, publication visibility, and persistence regressions.
+- Check that unpublished maps cannot be read anonymously and that map/timetable writes remain scoped to their owner.
+- For routing changes, check shortest-path costs, directed edges, blocked/unverified edges, experimental approval and opt-in, and floor isolation. Require tests of the production service rather than a second routing implementation.
+- Keep manual confirmation and outdoor GPS separate from verified indoor tracking. Flag illustrative lobby paths or fixed distances presented as verified graph results.
+- Inspect client/server import boundaries, hook ordering, awaited service calls, and browser errors. A passing compiler check is not proof of a working browser bundle.
+- Review `.github/workflows/ci.yml` for privilege escalation, secret exposure, skipped required jobs, and assertions weakened to hide failures. Never merge or deploy as part of review.
+- Use `CI.md` for pinned CI dependencies, test commands, known baseline failures, and requesting an additional Codex review.

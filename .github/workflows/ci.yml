@@ -1,0 +1,154 @@
+name: NaviJac CI
+
+on:
+  push:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  merge_group:
+    types: [checks_requested]
+  workflow_dispatch:
+
+# PR code runs on disposable hosted runners without repository write access.
+# Do not switch this workflow to pull_request_target or add application secrets.
+permissions:
+  contents: read
+
+concurrency:
+  group: navijac-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  compiler:
+    name: Jac compiler and lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-ci
+      - name: Install application dependencies
+        run: jac install --dev
+      - name: Check all application modules and lint source
+        run: python ci/check_jac.py
+      - name: Save compiler and lint diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: compiler-diagnostics
+          path: test-results/compiler/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  navigation:
+    name: Navigation graph tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-ci
+      - name: Test production routing against seven synthetic graph cases
+        run: python -m pytest tests/test_navigation.py -vv -rA --junitxml=test-results/navigation.xml
+      - name: Summarize test results
+        if: always()
+        run: python ci/report_results.py test-results/navigation.xml
+      - name: Save test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: navigation-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  persistence:
+    name: Map persistence and authorization
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-ci
+      - name: Test restart persistence, ownership, publication, and demo seeding
+        run: python -m pytest tests/test_persistence.py -vv --tb=short --junitxml=test-results/persistence.xml
+      - name: Summarize test results
+        if: always()
+        run: python ci/report_results.py test-results/persistence.xml
+      - name: Save test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: persistence-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  frontend:
+    name: Frontend build and browser tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-ci
+      - name: Install application dependencies
+        id: dependencies
+        run: jac install --dev
+      - name: Install Chromium
+        id: browser
+        run: python -m playwright install --with-deps chromium
+      - name: Build the actual application
+        run: |
+          mkdir -p test-results
+          set -o pipefail
+          jac build main.jac 2>&1 | tee test-results/frontend-build.log
+      - name: Test themes, room loading, and mobile layout
+        # Run even if the preceding build failed, so startup errors are visible.
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' && steps.browser.outcome == 'success' }}
+        run: >-
+          python -m pytest tests/test_frontend.py -vv --tb=short
+          --junitxml=test-results/frontend.xml
+          --tracing=retain-on-failure --screenshot=only-on-failure
+          --output=test-results/browser
+      - name: Summarize test results
+        if: always()
+        run: python ci/report_results.py test-results/frontend.xml
+      - name: Save build and browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: frontend-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  required:
+    name: Required CI
+    if: always()
+    needs: [compiler, navigation, persistence, frontend]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require every job to succeed
+        env:
+          COMPILER: ${{ needs.compiler.result }}
+          NAVIGATION: ${{ needs.navigation.result }}
+          PERSISTENCE: ${{ needs.persistence.result }}
+          FRONTEND: ${{ needs.frontend.result }}
+        run: |
+          failed=0
+          for result in "$COMPILER" "$NAVIGATION" "$PERSISTENCE" "$FRONTEND"; do
+            if [[ "$result" != success ]]; then failed=1; fi
+          done
+          if [[ "$failed" == 1 ]]; then
+            echo '::error::Required CI failed: one or more jobs failed, were cancelled, or were skipped. Open the individual job logs and artifacts.'
+            exit 1
+          fi
