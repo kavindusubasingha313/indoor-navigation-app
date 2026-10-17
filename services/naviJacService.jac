@@ -119,28 +119,28 @@ def ensure_featured_record(floor_id: str) {
 
 def:pub seed_sumanadasa_floor() -> str {
     for f in [root.shared -->][?:NaviJacFloor] {
-        if f.building_name == "Dr. L. H. Sumanadasa Building" and f.floor_name == "First Floor" { fid = jid(f); ensure_featured_record(fid); seed_sumanadasa_rooms(fid); return fid; }
+        if f.building_name == "Dr. L. H. Sumanadasa Building" and f.floor_name == "Ground Floor" { fid = jid(f); ensure_featured_record(fid); seed_sumanadasa_rooms(fid); return fid; }
     }
     ensure_featured_record("");
     featured_id = "";
     for m in [root.shared -->][?:NaviJacMap] { if m.is_featured { featured_id = jid(m); } }
-    floor = root.shared ++> NaviJacFloor(building_name="Dr. L. H. Sumanadasa Building", department="Electrical Engineering", university="University of Moratuwa", floor_name="First Floor", original_map_id=featured_id);
+    floor = root.shared ++> NaviJacFloor(building_name="Dr. L. H. Sumanadasa Building", department="Electrical Engineering", university="University of Moratuwa", floor_name="Ground Floor", calibration_m_per_px=0.0909, calibration_note="Estimated from the printed 6 m dimension grid in the supplied ground-floor plan; image-derived, not surveyed.", distortion_warning="The schematic is reconstructed from a supplied plan image. Dimension grid and visible openings are interpreted; verify all dimensions, door clear widths and accessible routes on site.", original_map_id=featured_id);
     fid = jid(floor); seed_sumanadasa_rooms(fid); return fid;
 }
 
 def seed_sumanadasa_rooms(floor_id: str) {
-    names: list[str] = ["Electrical Engineering seminar room", "Senior staff common room", "Department office", "Head of the Department", "Electrical Engineering Board room", "Electrical Measurements Laboratory", "High Voltage Laboratory (Control Room)", "Staff room - Prof. N. Wickramarachchi", "Staff room", "Staff room - Dr. L. Weeramanckara", "Staff room - Prof. W.D.A.S. Rodrigo", "Staff room - Prof. J.P. Karunadasa", "Staff rooms - multiple academic staff", "Final Year Lecture Room", "Robotics and Automation Laboratory (section)", "Staff room - Dr. R.M.M. Ruwanthika", "Robotics and Automation Laboratory (section)", "Electrical Installations Laboratory", "Staff rooms - Contract Lecturers"];
-    lengths: list[float] = [14.0, 3.8, 3.9, 6.2, 6.3, 21.5, 9.5, 9.5, 6.5, 6.5, 9.5, 9.5, 9.5, 13.8, 5.9, 6.2, 11.8, 18.4, 7.7];
-    widths: list[float] = [6.4, 6.4, 6.4, 6.4, 6.4, 6.4, 6.4, 5.4, 5.5, 5.4, 5.5, 5.4, 8.1, 6.4, 6.4, 6.4, 6.4, 6.4, 6.4];
+    names: list[str] = ["IT unit (NDT)", "Female toilet", "Store room", "Male toilet", "Computer lab (RCDF)", "Seminar room (ITSDL)", "Staff lounge", "Ladies lunch room", "Library lobby", "Bindery section", "Bindery stores", "AQ stores", "Technical services division", "Gents lunch room"];
+    lengths: list[float] = [12.0, 6.0, 6.0, 6.0, 12.0, 12.0, 12.0, 12.0, 54.0, 18.0, 12.0, 18.0, 24.0, 12.0];
+    widths: list[float] = [12.0, 6.0, 6.0, 6.0, 12.0, 12.0, 12.0, 12.0, 12.0, 18.0, 18.0, 18.0, 18.0, 18.0];
+    labels: list[str] = ["IT unit (NDT)", "Toilet · female", "Store room", "Toilet · male", "Computer lab (RCDF)", "Seminar room (ITSDL)", "Staff lounge", "Ladies lunch room", "Lobby", "Bindery section", "Bindery stores", "AQ stores", "Technical services division", "Gents lunch room"];
     for (i, name) in enumerate(names) {
         found = False;
         for r in [root.shared -->][?:NaviJacRoom] { if r.floor_id == floor_id and r.room_number == i + 1 { found = True; } }
         if not found {
-            note = "";
-            if i + 1 == 8 or i + 1 == 11 { note = "Width uses bounding extent; stepped boundary not represented."; }
-            if i + 1 == 13 { note = "Numbered area includes multiple staff rooms; internal partitions not specified."; }
-            if i + 1 == 15 or i + 1 == 17 { note = "Section of Robotics and Automation Laboratory; do not assume independent facility."; }
-            root.shared ++> NaviJacRoom(floor_id=floor_id, room_number=i + 1, original_name=name, display_label=name, length_m=lengths[i], width_m=widths[i], notes=note);
+            note = "Approximate bounding dimensions interpreted from the printed 6 m grid; not surveyed.";
+            if i == 8 { note = "Open circulation lobby; outline is approximate and includes stair/core interruptions."; }
+            if i == 5 or i == 7 { note = "The drawing shows WC subdivisions in this area; individual cubicle sizes are not reconstructed."; }
+            root.shared ++> NaviJacRoom(floor_id=floor_id, room_number=i + 1, original_name=name, display_label=labels[i], length_m=lengths[i], width_m=widths[i], measurement_status="Estimated from supplied ground-floor dimension grid", notes=note);
         }
     }
 }
