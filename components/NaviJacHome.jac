@@ -1,8 +1,9 @@
-sv import from ..services.naviJacService { NaviJacMap, get_public_maps, create_public_map }
 import from .ui.button { Button }
 import from .ui.card { Card, CardHeader, CardTitle, CardDescription, CardContent }
 import from .ui.badge { Badge }
+import from .ui.input { Input }
 import from "@jac/runtime" { Link }
+sv import from ..services.naviJacService { NaviJacMap, get_public_maps, create_public_map, upload_floor_plan }
 
 
 def:pub NaviJacHome() -> JsxElement {
@@ -10,7 +11,8 @@ def:pub NaviJacHome() -> JsxElement {
         map_name: str = "",
         map_description: str = "",
         feedback: str = "",
-        loading: bool = True;
+        loading: bool = True,
+        uploading_map_id: str = "";
 
     async can with entry {
         maps = await get_public_maps();
@@ -32,9 +34,48 @@ def:pub NaviJacHome() -> JsxElement {
                 maps = maps + [created];
                 map_name = "";
                 map_description = "";
-                feedback = "Public building added.";
+                feedback = "Public building added. You can now upload its floor plan.";
             }
         }
+    }
+
+    async def handle_plan_change(e: ChangeEvent) {
+        file = e.target.files[0];
+        if not file {
+            return;
+        }
+        mime_type: str = file.type;
+        if mime_type != "image/png" and mime_type != "image/jpeg" {
+            feedback = "Choose a PNG or JPG floor-plan image.";
+            return;
+        }
+        if file.size > 5000000 {
+            feedback = "The image must be 5 MB or smaller.";
+            return;
+        }
+        reader: any = new(FileReader);
+        reader.onload = lambda (_event: Event) {
+            raw_result = reader.result as str;
+            split_data = raw_result.split(",");
+            if len(split_data) < 2 {
+                feedback = "The selected image could not be read.";
+                return;
+            }
+            async def save_plan -> None {
+                updated = await upload_floor_plan(uploading_map_id, split_data[1], mime_type);
+                if updated is None {
+                    feedback = "The floor plan could not be saved. Please try again.";
+                } else {
+                    maps = [updated if jid(item) == uploading_map_id else item for item in maps];
+                    feedback = "Floor plan saved and ready to view.";
+                }
+                uploading_map_id = "";
+            }
+            save_plan();
+        };
+        uploading_map_id = e.target.dataset["mapid"] as str;
+        feedback = "Reading floor-plan image…";
+        reader.readAsDataURL(file);
     }
 
     return <div className="min-h-svh bg-muted/40 text-foreground">
@@ -52,11 +93,11 @@ def:pub NaviJacHome() -> JsxElement {
                 <div className="flex max-w-3xl flex-col gap-4">
                     <Badge variant="outline" className="w-fit">Indoor navigation foundation</Badge>
                     <h1 className="text-balance text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">Find your way through the building.</h1>
-                    <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">NaviJac brings public indoor maps and future route guidance into one place. This experimental foundation starts with a single building directory.</p>
+                    <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">Start with one floor plan. Add verified walkable routes and more floors as the map develops.</p>
                 </div>
                 <div className="flex flex-col gap-1 rounded-xl bg-muted/60 p-4 md:min-w-52">
-                    <span className="text-sm font-medium">Designed for everyone</span>
-                    <span className="text-sm text-muted-foreground">Public visitors can browse maps. Administrators and map creators manage map records.</span>
+                    <span className="text-sm font-medium">Open to public visitors</span>
+                    <span className="text-sm text-muted-foreground">Browse the building directory and view uploaded floor plans.</span>
                 </div>
             </section>
 
@@ -64,14 +105,14 @@ def:pub NaviJacHome() -> JsxElement {
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div className="flex flex-col gap-1">
                         <h2 className="text-2xl font-semibold tracking-tight">Public buildings</h2>
-                        <p className="text-sm text-muted-foreground">Browse the maps made available to visitors.</p>
+                        <p className="text-sm text-muted-foreground">Browse the current single-floor experimental maps.</p>
                     </div>
                     <span className="text-sm text-muted-foreground">{str(len(maps))} public maps</span>
                 </div>
                 <Card className="shadow-sm">
                     <CardHeader>
                         <CardTitle>Building directory</CardTitle>
-                        <CardDescription>Map geometry and walkable routes will be added after locations are verified.</CardDescription>
+                        <CardDescription>Floor plans appear here after a map creator uploads them.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         {if loading {
@@ -81,21 +122,31 @@ def:pub NaviJacHome() -> JsxElement {
                         {if len(maps) == 0 {
                             <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed bg-muted/30 px-5 py-12 text-center">
                                 <span className="text-base font-semibold">No public maps yet</span>
-                                <span className="max-w-md text-sm text-muted-foreground">Create the first building record to establish the public directory. No room positions or routes are assumed.</span>
+                                <span className="max-w-md text-sm text-muted-foreground">Create a building record, then attach its floor plan to make it available here.</span>
                             </div>
                             skip;
                         }}
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="grid gap-5 md:grid-cols-2">
                             {for building in maps {
-                                <article key={jid(building)} className="rounded-xl border bg-background p-5 shadow-sm transition-shadow hover:shadow-md">
+                                <article key={jid(building)} className="flex min-w-0 flex-col gap-4 rounded-xl border bg-background p-4 shadow-sm">
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="flex flex-col gap-1">
                                             <h3 className="text-lg font-semibold">{building.name}</h3>
-                                            <p className="text-sm text-muted-foreground">{building.description if len(building.description) > 0 else "Building map foundation"}</p>
+                                            <p className="text-sm text-muted-foreground">{building.description if len(building.description) > 0 else "Single-floor building plan"}</p>
                                         </div>
                                         <Badge variant="secondary">Public</Badge>
                                     </div>
-                                    <div className="mt-5 border-t pt-4 text-sm text-muted-foreground">{str(building.floor_count)} floor prepared for map data</div>
+                                    {if building.floor_plan_data {
+                                        <div className="overflow-hidden rounded-lg border bg-muted/30">
+                                            <img src={"data:" + building.floor_plan_type + ";base64," + building.floor_plan_data} alt={"Floor plan for " + building.name} className="max-h-[28rem] w-full object-contain" />
+                                        </div>
+                                    } else {
+                                        <div className="flex min-h-48 flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/30 p-6 text-center">
+                                            <span className="font-medium">Floor plan not uploaded</span>
+                                            <span className="text-sm text-muted-foreground">A creator can attach a PNG or JPG map.</span>
+                                        </div>
+                                    }}
+                                    <div className="border-t pt-3 text-sm text-muted-foreground">Floor 1 · route locations will be added after verification</div>
                                 </article>
                             }}
                         </div>
@@ -106,40 +157,42 @@ def:pub NaviJacHome() -> JsxElement {
             <section className="grid gap-5 lg:grid-cols-[1fr_1fr]">
                 <Card className="shadow-sm">
                     <CardHeader>
-                        <CardTitle>Creator foundation</CardTitle>
-                        <CardDescription>Create a public building record for the experimental directory.</CardDescription>
+                        <CardTitle>Create a building map</CardTitle>
+                        <CardDescription>Add a public building record, then upload its single-floor plan.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <form className="flex flex-col gap-4" onSubmit={lambda (e: FormEvent) { e.preventDefault(); handle_create(); }}>
                             <label className="flex flex-col gap-2 text-sm font-medium">Building name
-                                <input className="h-10 rounded-md border bg-background px-3 font-normal shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="For example, Engineering Building" value={map_name} onChange={handle_name} />
+                                <Input placeholder="For example, Engineering Building" value={map_name} onChange={handle_name} />
                             </label>
                             <label className="flex flex-col gap-2 text-sm font-medium">Description <span className="font-normal text-muted-foreground">Optional</span>
                                 <textarea className="min-h-24 resize-y rounded-md border bg-background px-3 py-2 font-normal shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="A short public description" value={map_description} onChange={handle_description} />
                             </label>
-                            {feedback and <p role="status" className="text-sm text-muted-foreground">{feedback}</p>}
                             <Button type="submit" className="w-full sm:w-fit">Create public building</Button>
                         </form>
                     </CardContent>
                 </Card>
                 <Card className="shadow-sm">
                     <CardHeader>
-                        <CardTitle>Roles and persistence</CardTitle>
-                        <CardDescription>The groundwork for later administrator and map-creator workflows.</CardDescription>
+                        <CardTitle>Upload a floor plan</CardTitle>
+                        <CardDescription>Select a building below, then upload its PNG or JPG plan. Maximum file size is 5 MB.</CardDescription>
                     </CardHeader>
-                    <CardContent className="flex flex-col gap-3">
-                        <div className="rounded-lg border bg-background p-4">
-                            <p className="font-medium">Administrator and map creator</p>
-                            <p className="mt-1 text-sm text-muted-foreground">Role values and account records are modeled. Sign-in and permissions are intentionally not enabled in this stage.</p>
-                        </div>
-                        <div className="rounded-lg border bg-background p-4">
-                            <p className="font-medium">Public viewer</p>
-                            <p className="mt-1 text-sm text-muted-foreground">Public map records are stored in Jac’s persistent graph and can be browsed without an account.</p>
-                        </div>
+                    <CardContent className="flex flex-col gap-4">
+                        {if len(maps) == 0 {
+                            <p className="rounded-lg border border-dashed bg-muted/30 p-5 text-sm text-muted-foreground">Create a public building first to enable its floor-plan upload.</p>
+                            skip;
+                        }}
+                        {for building in maps {
+                            <label key={jid(building)} className="flex flex-col gap-2 rounded-lg border bg-background p-4 text-sm font-medium">
+                                {"Upload plan for " + building.name}
+                                <input type="file" accept="image/png,image/jpeg" data-mapid={jid(building)} onChange={handle_plan_change} className="block w-full cursor-pointer rounded-md border bg-background p-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground" />
+                            </label>
+                        }}
+                        {feedback and <p role="status" className="rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground">{feedback}</p>}
                     </CardContent>
                 </Card>
             </section>
-            <footer className="border-t pt-5 text-xs text-muted-foreground">NaviJac experimental foundation · Map geometry and routes are not yet defined.</footer>
+            <footer className="border-t pt-5 text-xs text-muted-foreground">NaviJac experimental map · Route geometry and directions are not yet defined.</footer>
         </main>
     </div>;
 }
