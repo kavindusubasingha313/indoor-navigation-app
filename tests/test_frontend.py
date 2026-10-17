@@ -1,6 +1,7 @@
 """Browser acceptance checks against the real full-stack entry point."""
 
 import os
+import secrets
 import shutil
 
 import pytest
@@ -17,7 +18,8 @@ def frontend(project):
         if source.exists():
             target = project / relative
             target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copytree(source, target, ignore=shutil.ignore_patterns(".vite"))
+            shutil.copytree(source, target, symlinks=True,
+                            ignore=shutil.ignore_patterns(".vite"))
     server = Server(project, frontend=True)
     try:
         yield server.start()
@@ -56,11 +58,49 @@ def test_home_and_theme_persistence(page, frontend):
 def test_route_room_loading_and_manual_confirmation(page, frontend):
     errors = open_app(page, frontend, "/maps/sumanadasa/first-floor/route")
     expect(page.get_by_role("heading", name="Find a room", exact=True)).to_be_visible()
-    start = page.get_by_label("I'm currently at", exact=True)
+    start = page.get_by_role("combobox", name="Current indoor location")
     expect(start.locator("option")).to_have_count(15)
     start.select_option(index=1)
     page.get_by_role("button", name="Confirm my location", exact=True).click()
     expect(page.get_by_text("MANUAL_CONFIRMED", exact=False)).to_be_visible()
+    page.get_by_role("combobox", name="Destination room").select_option(index=2)
+    page.get_by_role("button", name="Get directions", exact=True).click()
+    expect(page.get_by_text("Demo directions via the lobby", exact=False)).to_be_visible()
+    assert not errors, errors
+
+
+def register_creator(page, frontend):
+    errors = open_app(page, frontend, "/creator")
+    form = page.locator("form").filter(has=page.get_by_role("button", name="Create account", exact=True))
+    form.get_by_label("Email", exact=True).fill("ci_" + secrets.token_hex(6) + "@example.com")
+    form.get_by_label("Password", exact=True).fill(secrets.token_urlsafe(24))
+    form.get_by_role("button", name="Create account", exact=True).click()
+    expect(page.get_by_role("button", name="Sign out", exact=True)).to_be_visible()
+    return errors
+
+
+def test_creator_draft_publication_and_unpublication(page, frontend):
+    errors = register_creator(page, frontend)
+    name = "Browser map " + secrets.token_hex(4)
+    page.get_by_label("Building name", exact=True).fill(name)
+    page.get_by_role("button", name="Create private draft", exact=True).click()
+    card = page.locator("article").filter(has=page.get_by_role("heading", name=name, exact=True))
+    expect(card.get_by_text("Private draft", exact=True)).to_be_visible()
+    card.get_by_role("button", name="Publish map", exact=True).click()
+    expect(card.get_by_role("button", name="Unpublish", exact=True)).to_be_visible()
+    card.get_by_role("button", name="Unpublish", exact=True).click()
+    expect(card.get_by_text("Private draft", exact=True)).to_be_visible()
+    assert not errors, errors
+
+
+def test_personal_timetable_can_save_session(page, frontend):
+    errors = register_creator(page, frontend)
+    page.get_by_role("link", name="My timetable", exact=True).click()
+    page.get_by_label("Subject or event", exact=True).fill("Browser test lecture")
+    page.get_by_role("button", name="Save session", exact=True).click()
+    expect(page.get_by_text("Browser test lecture", exact=True)).to_be_visible()
+    page.reload()
+    expect(page.get_by_text("Browser test lecture", exact=True)).to_be_visible()
     assert not errors, errors
 
 

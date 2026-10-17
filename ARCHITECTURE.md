@@ -1,7 +1,7 @@
 # NaviJac architecture
 
 ## Runtime and structure
-NaviJac is a full-stack Jac 0.34.23 web application. Jac code provides both server endpoints and client components. The browser UI uses Jac JSX, React under the compiler runtime, React Router, Tailwind v4 and jac-shadcn primitives.
+NaviJac is a full-stack Jac 0.16.7 web application. Jac code provides both server endpoints and client components. The browser UI uses Jac JSX, React under the compiler runtime, React Router, Tailwind v4 and jac-shadcn primitives.
 
 - `main.jac` is the app entry point. It imports endpoint symbols from `services.naviJacService` to register them and mounts a manual `<Router>` with routes for `/`, `/maps/sumanadasa/first-floor/route`, `/maps/sumanadasa/first-floor/edit`, `/creator`, and `/timetable`.
 - `services/naviJacService.jac` is the server graph model/service module.
@@ -24,7 +24,7 @@ The service exposes map/catalog and floor reads, creator map create/update/publi
 A later UI attempt adds a “via lobby” demo path and a rough fixed distance. That is a client-side illustrative shortcut, not a graph-derived shortest path, and has not been verified end-to-end. Do not describe it as the service Dijkstra result.
 
 ## Map coordinates and source provenance
-`NaviJacRoom.x/y`, geometry endpoints, checkpoints and waypoints are local map coordinates; they are not latitude/longitude. The current ground-floor UI is an inline SVG drawn in `components/NaviJacFloorMap.jac`; its room shapes and positions are hard-coded and approximate. The service room seed stores coarse dimension estimates from the supplied plan's printed dimension grid. It does not persist the SVG's room polygons, doorway positions, or route graph. The source PDF/image is not in the current repository listing. No permission/license record is available.
+`NaviJacRoom.x/y`, geometry endpoints, checkpoints and waypoints are local map coordinates; they are not latitude/longitude. The current ground-floor UI is an inline SVG drawn in `components/NaviJacFloorMap.cl.jac`; its room shapes and positions are hard-coded and approximate. The service room seed stores coarse dimension estimates from the supplied plan's printed dimension grid. It does not persist the SVG's room polygons, doorway positions, or route graph. The source PDF/image is not in the current repository listing. No permission/license record is available.
 
 The plan grid should be treated as a user-authorized demo assumption, not an independently surveyed measurement. A real navigation deployment needs explicit scale calibration, common coordinate mapping, verified openings, room entrance nodes, accessible paths, provenance and review.
 

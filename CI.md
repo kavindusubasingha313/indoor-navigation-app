@@ -72,11 +72,14 @@ the application dependencies here.
    new commit; PR checks rerun automatically. Authorized maintainers can also use
    **Re-run failed jobs**. Do not skip, xfail, or remove assertions merely to merge.
 
-Known failures at introduction (not suppressed): map unpublication still returns
+Failures caught at introduction (not suppressed): map unpublication returned
 the unpublished shared record to anonymous callers; featured-floor seeding
-raises a list/node error; `main.jac` uses client-only imports in server context
+raised a list/node error; `main.jac` used client-only imports in server context
 under the pinned published toolchain. Compiler/lint results and exact browser
-startup diagnostics are separate from navigation/service test results.
+startup diagnostics are separate from navigation/service test results. The runtime
+repair commit fixes these defects; local compiler/lint, bundling, and all 14 pytest
+cases now pass (including seven nested Jac graph tests). Browser coverage now also
+includes creator publication/unpublication and timetable saves after reload.
 
 ## Protecting main
 
@@ -95,7 +98,9 @@ python ci/configure_branch_protection.py --apply
 
 The script verifies repository admin permission, preserves unrelated existing
 required status checks, updates only the relevant protection endpoints when
-protection exists, and reads back the result. It binds `Required CI` to the GitHub
+protection exists, and reads back the result. Review-only protection without an
+existing status-check sub-protection uses a full PUT retaining its reviews,
+restrictions, and boolean settings; a regression test covers this case. It binds `Required CI` to the GitHub
 Actions app. It never runs in CI and needs no administrator token in Actions.
 Existing rulesets/bypass grants are outside this script; inspect them in
 **Settings → Rules → Rulesets** as well. Protection availability depends on the
@@ -152,8 +157,21 @@ behavior. An Actions run is not proof that Codex reviewed the PR.
 
 ## Activation status
 
-Local verification and GitHub-hosted verification are separate. During initial
-setup the cloud network allowed Git transport but denied `api.github.com` at the
-proxy. Until that access is available and live API operations succeed, creation
-of the test PR, hosted run results, branch protection, and automatic Codex-review
-settings must be reported as unverified rather than enabled.
+Local verification and GitHub-hosted verification are separate. Draft
+[PR #1](https://github.com/kavindusubasingha313/indoor-navigation-app/pull/1)
+verified both push and PR events. The initial hosted run
+[39024105131](https://github.com/kavindusubasingha313/indoor-navigation-app/actions/runs/39024105131)
+passed graph tests and failed the other application checks; Required CI correctly
+failed. The app defects were subsequently repaired without suppressing tests.
+
+The native Codex integration completed a manual review of commit `0968cef` and
+provided a finding that was addressed. Its automatic/new-push settings cannot be
+changed through the available APIs, so they are not claimed enabled. Review
+configuration is at <https://chatgpt.com/codex/cloud/settings/general>.
+
+GitHub reports repository-admin membership, but the integration returns HTTP 403
+for branch-protection operations. The rulesets API also reports that this private
+repository needs GitHub Pro to enable that feature. Main-branch merge enforcement
+is therefore not enabled by this change; the owner must resolve plan/access limits
+and apply the documented gate. No merge or public deployment occurred as part of
+the CI verification.

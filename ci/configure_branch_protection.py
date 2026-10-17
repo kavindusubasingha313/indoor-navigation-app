@@ -13,6 +13,36 @@ GITHUB_ACTIONS_APP_ID = 15368
 CONTEXT = "Required CI"
 
 
+def protection_payload(current, required):
+    """Translate GitHub's read representation into its whole-protection PUT schema."""
+    result = {"required_status_checks": required, "enforce_admins": True,
+              "required_pull_request_reviews": None, "restrictions": None}
+    if not current:
+        return result
+    for key in ("required_linear_history", "allow_force_pushes", "allow_deletions",
+                "block_creations", "required_conversation_resolution", "lock_branch",
+                "allow_fork_syncing"):
+        if key in current:
+            result[key] = current[key]["enabled"]
+    def actors(value):
+        return {"users": [u["login"] for u in value.get("users", [])],
+                "teams": [t["slug"] for t in value.get("teams", [])],
+                "apps": [a["slug"] for a in value.get("apps", [])]}
+    if current.get("restrictions") is not None:
+        result["restrictions"] = actors(current["restrictions"])
+    if current.get("required_pull_request_reviews") is not None:
+        existing = current["required_pull_request_reviews"]
+        reviews = {key: existing[key] for key in (
+            "dismiss_stale_reviews", "require_code_owner_reviews",
+            "required_approving_review_count", "require_last_push_approval"
+        ) if key in existing}
+        for key in ("dismissal_restrictions", "bypass_pull_request_allowances"):
+            if key in existing:
+                reviews[key] = actors(existing[key])
+        result["required_pull_request_reviews"] = reviews
+    return result
+
+
 def api(path, method="GET", payload=None, allow_missing=False):
     command = ["gh", "api", "--method", method, path]
     if payload is not None:
@@ -53,9 +83,10 @@ def main():
                       "enforce_admins": True, "apply": args.apply}, indent=2))
     if not args.apply:
         return
-    if current is None:
-        api(prefix, "PUT", {"required_status_checks": required, "enforce_admins": True,
-                            "required_pull_request_reviews": None, "restrictions": None})
+    if current is None or current.get("required_status_checks") is None:
+        # PATCH cannot enable a missing status-check sub-protection. Preserve the
+        # current reviews, restrictions and boolean protections in the full PUT.
+        api(prefix, "PUT", protection_payload(current, required))
     else:
         api(prefix + "/required_status_checks", "PATCH", required)
         api(prefix + "/enforce_admins", "POST")

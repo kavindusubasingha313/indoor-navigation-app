@@ -1,14 +1,15 @@
 # NaviJac setup
 
 ## Requirements
-- Jac CLI **0.34.23** (or the compatible project release); verify with `jac --version`.
+- Jac CLI **0.16.7** (or the compatible project release); verify with `jac --version`.
 - Node/npm support as managed by Jac for client dependencies.
 - A local checkout of this project, including `jac.toml`.
 
 ## Install
-From the repository root:
+From the repository root, in a Python 3.12 virtual environment:
 ```sh
-jac install
+python -m pip install -c ci/requirements.txt -r requirements.txt
+jac install --dev
 ```
 This installs/resolves the Jac project dependencies from `jac.toml`, including client dependencies.
 
@@ -28,15 +29,20 @@ Open the URL printed by the CLI (commonly `http://localhost:8000`). In the JacHa
 
 ## Checks and tests
 ```sh
-jac check main.jac
-jac test
+python -m pip install -r ci/requirements.txt
+python ci/check_jac.py
+python -m playwright install --with-deps chromium
+python -m pytest tests -vv
+jac build main.jac
 ```
-The compiler check was run for this handover and passed with runtime import/type warnings. `jac test` is the expected Jac test runner, but this checkout currently has no test files, and the command was not run during this handover. No integration or automated browser test script is checked into the source tree.
+The suite runs in temporary copies and preserves the checkout's graph data.
+It checks seven Jac graph scenarios, actual server restarts and ownership,
+publication visibility, production signing keys, and browser interactions.
+`jac check` alone is not an application or browser test. See [CI.md](CI.md).
 
-For manual browser checks, use the app URL and verify the home route, visitor route, creator flow, timetable flow and editor. Test both narrow phone and desktop widths. Do not report a flow as passing unless it was exercised; the route selection flow is currently known to need retesting.
-
-## Build
-There is no confirmed production build command or build script recorded in `jac.toml`/the repository docs. Consult `jac --help` for the installed Jac release before choosing one. Do not treat `jac check` as a production bundle build.
-
-## Local backend/frontend distinction
-`main.jac` starts the full-stack application; the frontend is built/served by Jac's client pipeline. There is no separate backend service command or separately maintained frontend package manifest in the source tree.
+## Production
+Use the Dockerfile and [DEPLOYMENT.md](DEPLOYMENT.md). The production entry point
+runs without hot reload, disables the bundled default admin portal, and persists
+a private session-signing key with the graph data. Mount persistent storage at
+`/app/.jac/data` and terminate HTTPS at the hosting service. No public deployment
+is established by a local build.

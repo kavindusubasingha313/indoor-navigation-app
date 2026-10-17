@@ -33,6 +33,8 @@ jobs:
       - uses: ./.github/actions/setup-ci
       - name: Install application dependencies
         run: jac install --dev
+      - name: Validate CI administration helpers
+        run: python -m pytest tests/test_ci_configuration.py tests/test_deployment.py -vv
       - name: Check all application modules and lint source
         run: python ci/check_jac.py
       - name: Save compiler and lint diagnostics
