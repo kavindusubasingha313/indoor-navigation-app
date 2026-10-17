@@ -146,7 +146,10 @@ def:pub NaviJacHome() -> JsxElement {
                                             <span className="text-sm text-muted-foreground">A creator can attach a PNG or JPG map.</span>
                                         </div>
                                     }}
-                                    <div className="border-t pt-3 text-sm text-muted-foreground">Floor 1 · route locations will be added after verification</div>
+                                    <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+                                        <span className="text-sm text-muted-foreground">Floor 1 · routes await manual verification</span>
+                                        <Link to="/maps/sumanadasa/first-floor/edit" className="text-sm font-medium text-primary hover:underline">Open floor editor</Link>
+                                    </div>
                                 </article>
                             }}
                         </div>
