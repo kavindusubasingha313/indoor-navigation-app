@@ -25,7 +25,7 @@ node NaviJacConnection { has floor_id: str, from_id: str, to_id: str, cost: floa
 node NaviJacTimetableEntry { has subject: str, weekday: str, start_time: str, end_time: str, building_id: str = "", room_id: str = "", location_name: str = "", notes: str = ""; }
 
 # Public read-only discovery endpoints use the shared catalogue.
-def:pub get_public_maps() -> list[NaviJacMap] { return [root.shared -->][?:NaviJacMap, is_public]; }
+def:pub get_public_maps() -> list[NaviJacMap] { return [m for m in [root.shared -->][?:NaviJacMap] if m.is_public]; }
 def:pub get_featured_demo() -> NaviJacMap | None { for m in [root.shared -->][?:NaviJacMap] { if m.is_featured { return m; } } return None; }
 def:pub get_public_room_profile(room_id: str) -> NaviJacRoom | None { for r in [root.shared -->][?:NaviJacRoom] { if jid(r) == room_id { return r; } } return None; }
 
@@ -33,7 +33,9 @@ def:pub get_public_room_profile(room_id: str) -> NaviJacRoom | None { for r in [
 def:protect get_owned_maps() -> list[NaviJacMap] { return [root -->][?:NaviJacMap]; }
 def:protect create_owned_map(name: str, description: str, location: str) -> NaviJacMap | None {
     clean = name.strip(); if len(clean) == 0 { return None; }
-    return root ++> NaviJacMap(name=clean, description=description.strip(), location=location.strip(), owner_id=str(jid(root)), is_public=False);
+    draft = NaviJacMap(name=clean, description=description.strip(), location=location.strip(), owner_id=str(jid(root)), is_public=False);
+    root ++> draft;
+    return draft;
 }
 def:protect update_owned_map(map_id: str, name: str, description: str) -> NaviJacMap | None {
     for m in [root -->][?:NaviJacMap] { if jid(m) == map_id and m.owner_id == str(jid(root)) { m.name = name.strip(); m.description = description.strip(); return m; } }
@@ -44,7 +46,11 @@ def:protect publish_owned_map(map_id: str, publish: bool) -> NaviJacMap | None {
         if jid(draft) == map_id and draft.owner_id == str(jid(root)) {
             draft.is_public = publish;
             for copy in [root.shared -->][?:NaviJacMap] { if copy.source_id == map_id { copy.is_public = publish; copy.name = draft.name; copy.description = draft.description; return draft; } }
-            if publish { root.shared ++> NaviJacMap(name=draft.name, description=draft.description, owner_id=draft.owner_id, source_id=map_id, location=draft.location, is_public=True, floor_count=draft.floor_count, floor_plan_data=draft.floor_plan_data, floor_plan_type=draft.floor_plan_type); }
+            if publish {
+                published = NaviJacMap(name=draft.name, description=draft.description, owner_id=draft.owner_id, source_id=map_id, location=draft.location, is_public=True, floor_count=draft.floor_count, floor_plan_data=draft.floor_plan_data, floor_plan_type=draft.floor_plan_type);
+                root.shared ++> published;
+                grant(published, level=ReadPerm);
+            }
             return draft;
         }
     }
@@ -55,57 +61,6 @@ def:protect upload_floor_plan(map_id: str, image_data: str, image_type: str) -> 
     if image_type != "image/png" and image_type != "image/jpeg" { return None; }
     for m in [root -->][?:NaviJacMap] { if jid(m) == map_id and m.owner_id == str(jid(root)) { m.floor_plan_data = image_data; m.floor_plan_type = image_type; return m; } }
     return None;
-}
-
-def:protect get_my_timetable() -> list[NaviJacTimetableEntry] {
-    return [root -->][?:NaviJacTimetableEntry];
-}
-
-def _valid_time(value: str) -> bool {
-    parts = value.split(":");
-    if len(parts) != 2 { return False; }
-    hour = int(parts[0]); minute = int(parts[1]);
-    return hour >= 0 and hour < 24 and minute >= 0 and minute < 60;
-}
-
-def _time_minutes(value: str) -> int {
-    parts = value.split(":");
-    return int(parts[0]) * 60 + int(parts[1]);
-}
-
-def:protect create_timetable_entry(subject: str, weekday: str, start_time: str, end_time: str, building_id: str, room_id: str, location_name: str, notes: str) -> dict {
-    days: list[str] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-    if len(subject.strip()) == 0 { return {"ok": False, "message": "Enter an event or subject name."}; }
-    if weekday not in days { return {"ok": False, "message": "Choose a valid weekday."}; }
-    if not _valid_time(start_time) or not _valid_time(end_time) or _time_minutes(end_time) <= _time_minutes(start_time) { return {"ok": False, "message": "End time must be later than a valid start time."}; }
-    for existing in [root -->][?:NaviJacTimetableEntry] {
-        if existing.weekday == weekday and _time_minutes(start_time) < _time_minutes(existing.end_time) and _time_minutes(end_time) > _time_minutes(existing.start_time) { return {"ok": False, "message": "This session overlaps another saved session."}; }
-    }
-    root ++> NaviJacTimetableEntry(subject=subject.strip(), weekday=weekday, start_time=start_time, end_time=end_time, building_id=building_id.strip(), room_id=room_id.strip(), location_name=location_name.strip(), notes=notes.strip());
-    return {"ok": True, "message": "Timetable session saved."};
-}
-
-def:protect preview_timetable_csv(csv_text: str) -> dict {
-    lines = csv_text.strip().split(chr(10));
-    rows: list[dict] = [];
-    errors: list[str] = [];
-    if len(lines) < 2 { return {"rows": rows, "errors": ["Paste a header row and at least one timetable row."], "valid": False}; }
-    header = [h.strip().lower() for h in lines[0].split(",")];
-    required: list[str] = ["subject", "weekday", "start_time", "end_time"];
-    for col in required { if col not in header { errors = errors + ["CSV is missing the required column: " + col]; } }
-    if len(errors) > 0 { return {"rows": rows, "errors": errors, "valid": False}; }
-    subject_i = header.index("subject"); weekday_i = header.index("weekday"); start_i = header.index("start_time"); end_i = header.index("end_time");
-    location_i = header.index("location") if "location" in header else -1;
-    for line_no in range(1, len(lines)) {
-        cells = [c.strip() for c in lines[line_no].split(",")];
-        if len(cells) != len(header) { errors = errors + ["Row " + str(line_no + 1) + " has an unexpected number of columns."]; }
-        else {
-            subject = cells[subject_i]; weekday = cells[weekday_i]; start_value = cells[start_i]; end_value = cells[end_i]; location = cells[location_i] if location_i >= 0 else "";
-            if len(subject) == 0 or not _valid_time(start_value) or not _valid_time(end_value) or _time_minutes(end_value) <= _time_minutes(start_value) { errors = errors + ["Row " + str(line_no + 1) + " has an invalid subject or time range."]; }
-            else { rows = rows + [{"subject": subject, "weekday": weekday, "start_time": start_value, "end_time": end_value, "location_name": location}]; }
-        }
-    }
-    return {"rows": rows, "errors": errors, "valid": len(errors) == 0};
 }
 
 # Public featured demo initialization is idempotent and never resets existing rooms or graph geometry.
@@ -124,7 +79,8 @@ def:pub seed_sumanadasa_floor() -> str {
     ensure_featured_record("");
     featured_id = "";
     for m in [root.shared -->][?:NaviJacMap] { if m.is_featured { featured_id = jid(m); } }
-    floor = root.shared ++> NaviJacFloor(building_name="Dr. L. H. Sumanadasa Building", department="Electrical Engineering", university="University of Moratuwa", floor_name="Ground Floor", calibration_m_per_px=0.0909, calibration_note="Estimated from the printed 6 m dimension grid in the supplied ground-floor plan; image-derived, not surveyed.", distortion_warning="The schematic is reconstructed from a supplied plan image. Dimension grid and visible openings are interpreted; verify all dimensions, door clear widths and accessible routes on site.", original_map_id=featured_id);
+    floor = NaviJacFloor(building_name="Dr. L. H. Sumanadasa Building", department="Electrical Engineering", university="University of Moratuwa", floor_name="Ground Floor", calibration_m_per_px=0.0909, calibration_note="Estimated from the printed 6 m dimension grid in the supplied ground-floor plan; image-derived, not surveyed.", distortion_warning="The schematic is reconstructed from a supplied plan image. Dimension grid and visible openings are interpreted; verify all dimensions, door clear widths and accessible routes on site.", original_map_id=featured_id);
+    root.shared ++> floor;
     fid = jid(floor); seed_sumanadasa_rooms(fid); return fid;
 }
 
@@ -153,7 +109,7 @@ def:pub get_floor_editor_data(floor_id: str) -> dict {
     for r in [root.shared -->][?:NaviJacRoom] { if r.floor_id == fid { rooms = rooms + [r]; } }
     if len(rooms) == 0 { seed_sumanadasa_rooms(fid); for r in [root.shared -->][?:NaviJacRoom] { if r.floor_id == fid { rooms = rooms + [r]; } } }
     for c in [root.shared -->][?:NaviJacCheckpoint] { if c.floor_id == fid { checkpoints = checkpoints + [c]; } }
-    for r in rooms { has_cp = False; for c in checkpoints { if c.room_id == jid(r) { has_cp = True; } } if not has_cp { fresh = root.shared ++> NaviJacCheckpoint(floor_id=fid, room_id=jid(r), room_number=r.room_number); checkpoints = checkpoints + [fresh]; } }
+    for r in rooms { has_cp = False; for c in checkpoints { if c.room_id == jid(r) { has_cp = True; } } if not has_cp { fresh = NaviJacCheckpoint(floor_id=fid, room_id=jid(r), room_number=r.room_number); root.shared ++> fresh; checkpoints = checkpoints + [fresh]; } }
     for g in [root.shared -->][?:NaviJacGeometry] { if g.floor_id == fid { geometry = geometry + [g]; } }
     for w in [root.shared -->][?:NaviJacWaypoint] { if w.floor_id == fid { waypoints = waypoints + [w]; } }
     for e in [root.shared -->][?:NaviJacConnection] { if e.floor_id == fid { connections = connections + [e]; } }
@@ -242,8 +198,12 @@ def:protect get_my_timetable() -> list[NaviJacTimetableEntry] {
 def _valid_time(value: str) -> bool {
     parts = value.split(":");
     if len(parts) != 2 { return False; }
-    hour = int(parts[0]);
-    minute = int(parts[1]);
+    try {
+        hour = int(parts[0]);
+        minute = int(parts[1]);
+    } except ValueError {
+        return False;
+    }
     return hour >= 0 and hour < 24 and minute >= 0 and minute < 60;
 }
 

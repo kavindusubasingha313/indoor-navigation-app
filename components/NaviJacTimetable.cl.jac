@@ -34,13 +34,12 @@ def:pub NaviJacTimetable() -> JsxElement {
     def update_location(e: ChangeEvent) { location_name = e.target.value; }
     def update_notes(e: ChangeEvent) { notes = e.target.value; }
     def update_csv(e: ChangeEvent) { csv_text = e.target.value; }
-    def load_csv_file(e: ChangeEvent) {
-        file = e.target.files[0];
+    async def load_csv_file(e: ChangeEvent) {
+        file: any = e.target.files[0];
         if not file { return; }
         if not file.name.lower().endswith(".csv") { feedback = "Choose a .csv timetable file."; return; }
-        reader: any = new(FileReader);
-        reader.onload = lambda (_event: Event) { csv_text = reader.result as str; feedback = "CSV file loaded. Preview it before import."; };
-        reader.readAsText(file);
+        csv_text = (await file.text()) as str;
+        feedback = "CSV file loaded. Preview it before import.";
     }
 
     async def save_session(e: FormEvent) {

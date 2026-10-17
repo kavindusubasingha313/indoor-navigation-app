@@ -2,6 +2,23 @@
 
 Updated: 2026-05-04
 
+## Current verification update — 2026-10-17
+
+Runtime and compatibility repairs now make `jac build main.jac`, the full compiler
+check, and lint pass on Jac 0.16.7. The new automated suite passes 14 pytest cases,
+including a wrapper that executes seven Jac graph tests. Five browser cases cover
+themes, manual demo selection, creator publication, saved timetables, and mobile
+layout. Map persistence is verified across a real server-process restart.
+
+CI runs on pushes and pull requests with a combined Required CI gate. Codex
+successfully reviewed the initial CI commit; its branch-protection helper finding
+was addressed. Main-branch protection remains blocked by integration permissions
+and the repository's private-plan ruleset restriction. The production container
+build and runtime home/API/demo checks passed with the corrected configuration;
+a public host has not yet been selected. The earlier stage
+assessments below remain historical context, not claims that surveyed geometry,
+GPS proximity, or arbitrary creator floor editing have been completed.
+
 ## Summary
 NaviJac is an existing Jac full-stack web application with a public map directory, creator workspace, personal timetable, theme control, experimental floor editor, graph-routing service, and a Library Ground Floor schematic demo. This status reflects source inspection and checks performed for the current handover. Historical stage labels below are reconstructed from the surviving source and agent notes; there is no complete change log in this workspace.
 
@@ -9,7 +26,7 @@ NaviJac is an existing Jac full-stack web application with a public map director
 - **Stages 1–4 — foundation and map/creator work: partially evidenced.** The code contains the route shell, public map catalog, graph models, a creator account/map ownership workflow, upload API, and editor UI. The original stage specifications and formal acceptance results are not present, so those stages cannot be certified complete here.
 - **Stage 5 — timetable and theme: implemented in source, not fully regression-tested.** The app has a theme toggle and private timetable data/UI, including manual session validation and CSV preview/import functions. Authentication-dependent end-to-end behavior was not tested during this handover.
 - **Stage 6 — graph routing/editor groundwork: partially implemented.** The service contains Dijkstra-style routing over existing eligible graph edges and requires confirmed room entrance checkpoints. The editor exposes point/edge controls and validation UI; featured demo save functions are read-only/no-op and no verified ground-floor graph is seeded. Owner/admin authorization for approving experimental edges is not complete.
-- **Stage 7 — visual Library Ground Floor and manual positioning: partial/demo only.** Room labels and approximate dimensions are seeded, and `NaviJacFloorMap.jac` renders an inline SVG reconstruction. The route page has manual point selection controls, but an interactive start-to-destination route has not been verified and the latest attempted implementation has reported runtime errors in earlier preview checks. The graphic is not the original PDF/CAD; the PDF is not present in the repository. Do not mark turn-by-turn routing complete.
+- **Stage 7 — visual Library Ground Floor and manual positioning: partial/demo only.** Room labels and approximate dimensions are seeded, and `NaviJacFloorMap.cl.jac` renders an inline SVG reconstruction. The route page has manual point selection controls, but an interactive start-to-destination route has not been verified and the latest attempted implementation has reported runtime errors in earlier preview checks. The graphic is not the original PDF/CAD; the PDF is not present in the repository. Do not mark turn-by-turn routing complete.
 
 ## Implemented in inspected source
 - Jac manual router with home, featured route/editor, creator, timetable paths.

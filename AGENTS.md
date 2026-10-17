@@ -1,7 +1,7 @@
 # NaviJac agent instructions
 
 ## Project facts
-- Full-stack Jac web application; tested/compiler target is Jac 0.34.23.
+- Full-stack Jac web application; tested/compiler target is Jac 0.16.7.
 - Jac service/backend is in `services/naviJacService.jac`; React-compatible client JSX is written in `.jac` components under `components/`. Entry/router and endpoint registration are in `main.jac`.
 - UI uses jac-shadcn components and Tailwind v4. Configuration and dependencies are in `jac.toml`.
 - Persisted graph data is managed by Jac OSP. The default local store is under `.jac/data/` (generated/local; not source assets).
@@ -17,23 +17,23 @@
 ## Layout
 - `main.jac`: manual React Router routes and imported endpoint registration.
 - `services/naviJacService.jac`: graph models, public functions, map/user/timetable operations and route algorithm.
-- `components/NaviJacHome.jac`: public map directory/landing page.
-- `components/NaviJacFloorMap.jac`: inline SVG ground-floor schematic.
-- `components/NaviJacRouteFinder.jac`: visitor route view and positioning controls.
-- `components/NaviJacFloorEditor.jac`: experimental editor/graph status UI.
-- `components/NaviJacCreator.jac`: creator account and owned-map workspace.
-- `components/NaviJacTimetable.jac`: private timetable and CSV preview/import UI.
-- `components/NaviJacThemeToggle.jac`: theme control.
+- `components/NaviJacHome.cl.jac`: public map directory/landing page.
+- `components/NaviJacFloorMap.cl.jac`: inline SVG ground-floor schematic.
+- `components/NaviJacRouteFinder.cl.jac`: visitor route view and positioning controls.
+- `components/NaviJacFloorEditor.cl.jac`: experimental editor/graph status UI.
+- `components/NaviJacCreator.cl.jac`: creator account and owned-map workspace.
+- `components/NaviJacTimetable.cl.jac`: private timetable and CSV preview/import UI.
+- `components/NaviJacThemeToggle.cl.jac`: theme control.
 - `components/ui/`: generated jac-shadcn primitives; import and compose, do not hand-edit these managed components.
 
 ## Commands
-From the project root, with Jac 0.34.23 installed:
+From the project root, with Jac 0.16.7 installed:
 ```sh
 jac install
 jac check main.jac
 jac start --dev main.jac
 ```
-The IDE preview is platform-managed; do not start or kill another server in that environment. Run automated tests with `jac test` only after adding/locating test files; this checkout currently contains no `*.test.jac` files. A production build command has not been confirmed for this checkout; consult `jac --help` for the installed CLI rather than assuming a command.
+The IDE preview is platform-managed; do not start or kill another server in that environment. Run `python ci/check_jac.py`, `python -m pytest tests -vv`, and `jac build main.jac`. Tests run in disposable copies; never reset developer graph data to make a test pass. The pytest navigation wrapper executes seven Jac tests and rejects zero-test success. See CI.md and DEPLOYMENT.md.
 
 ## Environment and secrets
 `jac.toml` references `OPENAI_API_KEY` and `LLM_MODEL` for optional by-LLM configuration; current NaviJac code does not need an LLM to render. Do not commit `.env`, credentials, tokens, or keys. Configure secrets through the local environment/IDE Settings. No database initialization is needed for the default local Jac graph store; protect backups before resetting `.jac/data/`.
@@ -44,3 +44,12 @@ The IDE preview is platform-managed; do not start or kill another server in that
 - Keep mobile layout responsive; use semantic theme tokens and existing components.
 - Check the actual rendered screen at phone and desktop widths after UI changes. Report test commands/results honestly.
 - Never claim GPS is indoor positioning. Never present the demo’s estimated map-derived distances as measured walking distances.
+
+## Review guidelines
+- Prioritize correctness, authorization, publication visibility, and persistence regressions.
+- Check that unpublished maps cannot be read anonymously and that map/timetable writes remain scoped to their owner.
+- For routing changes, check shortest-path costs, directed edges, blocked/unverified edges, experimental approval and opt-in, and floor isolation. Require tests of the production service rather than a second routing implementation.
+- Keep manual confirmation and outdoor GPS separate from verified indoor tracking. Flag illustrative lobby paths or fixed distances presented as verified graph results.
+- Inspect client/server import boundaries, hook ordering, awaited service calls, and browser errors. A passing compiler check is not proof of a working browser bundle.
+- Review `.github/workflows/ci.yml` for privilege escalation, secret exposure, skipped required jobs, and assertions weakened to hide failures. Never merge or deploy as part of review.
+- Use `CI.md` for pinned CI dependencies, test commands, known baseline failures, and requesting an additional Codex review.

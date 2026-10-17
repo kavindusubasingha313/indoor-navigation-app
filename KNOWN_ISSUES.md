@@ -1,7 +1,26 @@
 # Known issues and verification limits
 
+## Update: runtime repairs and automated checks (2026-10-17)
+
+The handover observations below are historical. Client files now use `.cl.jac`
+and the entry point has an explicit client block. Production bundling and the
+full compiler/lint checks pass on the pinned published toolchain. Graph creation
+returns nodes, featured-floor seeding is repeatable, and the public catalogue
+filters unpublished maps. Duplicate timetable definitions were consolidated and
+malformed numeric times are rejected instead of raising HTTP 500.
+
+The automated suite now passes five browser flows (home/themes, manual demo
+selection, creator publication, timetable persistence, and mobile layout), five
+backend persistence/authorization cases, seven nested Jac graph cases, and CI/
+production-key helper checks. The test suite preserves local developer data.
+
+Surveyed geometry, actual GPS proximity, creator floor editing/alignment, and
+live indoor tracking remain incomplete. Legacy Sumanadasa/first-floor names are
+retained for compatibility. This demo must not be presented as real-world verified
+navigation. Public deployment still requires a selected host and available access.
+
 ## Navigation and plan geometry
-- The current ground-floor floorplan is a manually authored SVG schematic in `components/NaviJacFloorMap.jac`, not an imported/registered source PDF or CAD drawing.
+- The current ground-floor floorplan is a manually authored SVG schematic in `components/NaviJacFloorMap.cl.jac`, not an imported/registered source PDF or CAD drawing.
 - Room dimensions in the ground-floor seed are approximate bounding values. The 6 m printed grid is used as a demo-scale assumption; no source survey/calibration is included.
 - The repository listing does not contain the supplied PDF/image, a rights/license statement, or a digitized geometry asset. Confirm permission and provenance before committing the source drawing.
 - The ground-floor seed does not set room coordinates, checkpoint placement or graph connections. `get_floor_editor_data` can create unplaced checkpoints; these do not provide walkable route connectivity.

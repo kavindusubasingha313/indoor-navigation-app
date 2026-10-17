@@ -2,12 +2,13 @@
 
 NaviJac is a Jac full-stack indoor map and navigation prototype. It contains a public map directory, a featured University of Moratuwa Library Ground Floor schematic, an experimental graph editor, creator-owned map flows, a personal timetable, and theme controls.
 
-**Navigation status:** the current Library plan is a demo reconstruction from a supplied overhead image. Dimensions use a printed-grid assumption, while actual entrance geometry, accessibility and walking routes remain unverified. Do not rely on it for real-world navigation. The route-selection UI is under development and its end-to-end interaction is not currently verified.
+**Navigation status:** the current Library plan is a demo reconstruction from a supplied overhead image. Dimensions use a printed-grid assumption, while actual entrance geometry, accessibility and walking routes remain unverified. Do not rely on it for real-world navigation. The illustrative route-selection flow, manual confirmation, creator drafts, and timetable saves are covered by browser tests; the underlying floor geometry remains unverified.
 
 ## Requirements and run
-Use Jac 0.34.23. From this directory:
+Use Jac 0.16.7. From this directory:
 ```sh
-jac install
+python -m pip install -c ci/requirements.txt -r requirements.txt
+jac install --dev
 jac check main.jac
 jac start --dev main.jac
 ```
@@ -26,5 +27,11 @@ Open the URL emitted by Jac. Environment variables, tests, architecture and know
 - `components/` — pages, floor map, theme; `components/ui/` — managed shadcn primitives.
 - `styles/global.css`, `jac.toml` — theme, Tailwind/Vite and dependencies.
 
-## Testing caveat
-`jac check main.jac` passed during handover with existing warnings. No Jac test files were found. The browser route interaction has known errors and is not signed off. See the status and issue documents before using the demo or continuing implementation.
+## Tests, review, and deployment
+Run `python -m pip install -r ci/requirements.txt`, then `python -m pytest tests -vv`.
+The pytest suite includes seven Jac graph cases, process-restart persistence,
+ownership/publication checks, production-key checks, and Chromium browser flows.
+See [CI.md](CI.md) for browser setup, failure artifacts, branch protection and
+requesting Codex review. See [DEPLOYMENT.md](DEPLOYMENT.md) for the production
+container and persistent-storage requirements. No workflow automatically merges
+or deploys the application.
