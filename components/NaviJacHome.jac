@@ -148,7 +148,7 @@ def:pub NaviJacHome() -> JsxElement {
                                     }}
                                     <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
                                         <span className="text-sm text-muted-foreground">Floor 1 · routes await manual verification</span>
-                                        <Link to="/maps/sumanadasa/first-floor/edit" className="text-sm font-medium text-primary hover:underline">Open floor editor</Link>
+                                        <div className="flex gap-4"><Link to="/maps/sumanadasa/first-floor/route" className="text-sm font-medium text-primary hover:underline">Find a room</Link><Link to="/maps/sumanadasa/first-floor/edit" className="text-sm font-medium text-primary hover:underline">Open floor editor</Link></div>
                                     </div>
                                 </article>
                             }}
