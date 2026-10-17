@@ -31,7 +31,7 @@ for the temporary test server and are not printed or saved as artifacts.
 CI uses Ubuntu 24.04, Python 3.12 and Node 22. `ci/requirements.txt` pins the
 published Python toolchain and resolved test dependencies, including Jac 0.16.7,
 jac-client 0.3.25, jac-scale 0.2.31, and requests (required by the scale plugin).
-The handover documents refer to Jac **0.34.23**, which was not available from
+The original handover documents referred to Jac **0.34.23**, which was not available from
 PyPI when checked. Do not silently substitute that unavailable version in CI.
 The published toolchain exposes existing compatibility failures described below.
 
@@ -163,6 +163,10 @@ verified both push and PR events. The initial hosted run
 [39024105131](https://github.com/kavindusubasingha313/indoor-navigation-app/actions/runs/39024105131)
 passed graph tests and failed the other application checks; Required CI correctly
 failed. The app defects were subsequently repaired without suppressing tests.
+Both repaired-commit runs passed all jobs and Required CI:
+[push run](https://github.com/kavindusubasingha313/indoor-navigation-app/actions/runs/39024820529)
+and [PR run](https://github.com/kavindusubasingha313/indoor-navigation-app/actions/runs/39024823681)
+for commit `cd8eaf0`. This also verifies checks rerun on a new push to the existing PR.
 
 The native Codex integration completed a manual review of commit `0968cef` and
 provided a finding that was addressed. Its automatic/new-push settings cannot be

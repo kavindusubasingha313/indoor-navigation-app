@@ -13,8 +13,9 @@ layout. Map persistence is verified across a real server-process restart.
 CI runs on pushes and pull requests with a combined Required CI gate. Codex
 successfully reviewed the initial CI commit; its branch-protection helper finding
 was addressed. Main-branch protection remains blocked by integration permissions
-and the repository's private-plan ruleset restriction. A production container is
-being validated; a public host has not yet been selected. The earlier stage
+and the repository's private-plan ruleset restriction. The production container
+build and runtime home/API/demo checks passed with the corrected configuration;
+a public host has not yet been selected. The earlier stage
 assessments below remain historical context, not claims that surveyed geometry,
 GPS proximity, or arbitrary creator floor editing have been completed.
 

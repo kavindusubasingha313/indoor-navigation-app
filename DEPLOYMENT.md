@@ -23,13 +23,18 @@ It generates a private session-signing key in the persistent disk, reuses it on
 restart, and never prints it. Alternatively set `NAVIJAC_JWT_SECRET` securely in
 the host's environment settings (at least 32 random characters). Never put its
 value in source, build arguments, chat, or deployment logs. The production profile
-disables the bundled admin portal and its default account bootstrap.
+uses the application's disabled bundled admin portal/default account bootstrap.
 
 No OpenAI key or external database is needed for a single-instance deployment.
 For a managed host, connect this repository, select Docker, mount the persistent
 disk, and deploy the reviewed commit. Do not enable automatic deployments unless
 separately requested. Domain/account access and any paid hosting plan must be
 available before a public deployment can be verified.
+
+For builds behind an organization TLS proxy, the Dockerfile accepts an optional
+BuildKit `build_ca` secret containing the trusted CA bundle. The bundle is mounted
+only during installation/build and is not stored in the image. Normal builds do
+not need it. Never disable TLS verification to make dependency installation pass.
 
 ## Verify after deployment
 
@@ -47,3 +52,10 @@ available before a public deployment can be verified.
 Real GPS proximity detection, surveyed route geometry, and arbitrary creator-map
 floor editing are not completed by fixing startup and deployment. They remain
 separate development work; do not present this demo as live indoor tracking.
+
+## Verification status
+
+The production image build completed locally. A container with the corrected
+configuration served the home page and API, seeded all 14 demo rooms, and exposed
+no bundled admin login endpoint. This is local container validation, not a public
+deployment. A hosting project and deployment access are still required for a URL.

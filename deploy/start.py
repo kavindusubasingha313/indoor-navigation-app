@@ -28,6 +28,7 @@ def signing_key(directory):
 
 def main():
     os.environ["NAVIJAC_JWT_SECRET"] = signing_key(Path(".jac/data"))
+    os.environ["JAC_PROFILE"] = "production"
     port = int(os.environ.get("PORT", "8000"))
     if not 1 <= port <= 65535:
         raise RuntimeError("PORT must be between 1 and 65535")

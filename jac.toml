@@ -8,8 +8,11 @@ kind = "web-app"
 [plugins.scale.jwt]
 secret = "${NAVIJAC_JWT_SECRET:-navijac-local-development-only}"
 
-[environments.production.plugins.scale.admin]
+[plugins.scale.admin]
 enabled = false
+
+[plugins.client]
+debug = false
 
 [byllm]
 [byllm.model]

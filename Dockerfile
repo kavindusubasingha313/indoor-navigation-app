@@ -10,11 +10,17 @@ ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app
 COPY requirements.txt /tmp/dependencies/runtime.txt
 COPY ci/requirements.txt /tmp/dependencies/constraints.txt
-RUN python -m pip install --no-cache-dir \
+RUN --mount=type=secret,id=build_ca \
+    if [ -f /run/secrets/build_ca ]; then export PIP_CERT=/run/secrets/build_ca; fi; \
+    python -m pip install --no-cache-dir \
     -c /tmp/dependencies/constraints.txt -r /tmp/dependencies/runtime.txt
 
 COPY . /app
-RUN jac install --dev && jac build main.jac \
+RUN --mount=type=secret,id=build_ca \
+    if [ -f /run/secrets/build_ca ]; then \
+      export SSL_CERT_FILE=/run/secrets/build_ca REQUESTS_CA_BUNDLE=/run/secrets/build_ca NODE_EXTRA_CA_CERTS=/run/secrets/build_ca; \
+    fi; \
+    jac install --dev && jac build main.jac \
     && groupadd --gid 10001 navijac \
     && useradd --uid 10001 --gid navijac --create-home navijac \
     && mkdir -p /app/.jac/data \

@@ -142,7 +142,7 @@ def account(server):
 def create_map(server, session):
     result = api(server, session, "create_owned_map", name="CI private map",
                  description="Isolated test data", location="Test")
-    # Current ++> implementation returns a list although the annotation says node.
-    node = result[0] if isinstance(result, list) else result
+    assert isinstance(result, dict), "create_owned_map must return a node, not the ++> result list"
+    node = result
     assert node["is_public"] is False
     return node
